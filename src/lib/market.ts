@@ -65,7 +65,7 @@ export function createMarket(seed = 731991): Stock[] {
   return [...definitions, ...etfs].map(([ticker,name,sector,base,vol,drift,beta,cap,pe,dividend,color]) => {
     let p = base;
     const history = Array.from({length: 390}, () => {
-      p = Math.max(.5, p * Math.exp(drift / 48 + (random() - .5) * vol / 4));
+      p = Math.max(.5, p * Math.exp(drift / 390 + (random() - .5) * vol / Math.sqrt(390) * 3));
       return Number(p.toFixed(2));
     });
     const change = (p / base - 1) * 100;
@@ -84,9 +84,9 @@ export function advanceMarket(stocks: Stock[], seed = Date.now(), regime:"Bull"|
     const beta=Math.max(.65,stock.beta),volatility=stock.volatility??.02,base=stock.basePrice??stock.price;
     const sectorShock=(sectorFactors.get(stock.sector)??0)*.7;
     const reversion=Math.log(Math.max(.5,base)/Math.max(.5,stock.price))*.00012/390;
-    const shock=(random()-.5)*volatility/Math.sqrt(390)*regimeVol*beta;
+    const shock=(random()-.5)*volatility/Math.sqrt(390)*3.46*regimeVol*beta;
     const delta=stock.drift!/390+regimeDrift*beta/390+sectorShock+shock+reversion;
     const price=Math.max(.5,Math.min(base*30,stock.price*(1+delta)));
-    return {...stock,price:Number(price.toFixed(2)),change:stock.change+delta*100,volume:stock.volume+Math.floor(random()*90000+5000),marketCap:stock.marketCap*(price/Math.max(.5,stock.price)),history:[...stock.history.slice(-389),Number(price.toFixed(2))]};
+    return {...stock,price:Number(price.toFixed(2)),change:(price/base-1)*100,volume:stock.volume+Math.floor(random()*90000+5000),marketCap:stock.marketCap*(price/Math.max(.5,stock.price)),history:[...stock.history.slice(-389),Number(price.toFixed(2))]};
   });
 }
