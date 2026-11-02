@@ -38,7 +38,7 @@ describe("full simulator account panels", () => {
     expect(screen.getByText("Unlocked")).toBeTruthy();
     fireEvent.click(screen.getByRole("button",{name:"Settings"}));
     fireEvent.click(screen.getByRole("button",{name:"5×"}));
-    expect(onSpeed).toHaveBeenCalledWith(4);
+    expect(onSpeed).toHaveBeenCalledWith(5);
   });
 
   it("requires an explicit in-app confirmation before resetting progress", () => {
