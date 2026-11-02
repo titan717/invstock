@@ -277,3 +277,18 @@
 .game-reset-action{border:1px solid #F6465D55;background:#F6465D12;color:#F6465D}
 .game-import-area{display:block;width:100%;min-height:90px;margin-top:12px;border:1px solid #2B3139;border-radius:11px;background:#0B0E11;padding:10px;color:white;font-size:10px}
 @media(max-width:520px){.game-panel-content{padding:13px}.game-property{grid-template-columns:34px minmax(0,1fr) auto}.game-property button{font-size:10px}.game-balance-grid b{font-size:15px}}
+
+
+.challenge-leaderboard{margin:-3px 0 16px;border:1px solid #2B3139;border-radius:15px;background:#111519;padding:10px 14px}
+.challenge-leaderboard>div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #ffffff0b;padding:9px 0;font-size:11px}
+.challenge-leaderboard>div:last-of-type{border-bottom:0}
+.challenge-leaderboard strong{font-variant-numeric:tabular-nums}
+.challenge-leaderboard>button{width:100%;margin-top:10px;border-radius:9px;background:#0ECB81;padding:10px;color:#06110c;font-size:11px;font-weight:850}
+.home-missions{margin:12px 0 18px;border:1px solid #2B3139;border-radius:15px;background:#15191e;padding:2px 13px}
+.home-missions .mission-row{align-items:center;gap:10px;padding:12px 0}
+.home-missions .mission-row>span{display:flex;min-width:0;align-items:flex-start;gap:9px}
+.home-missions .mission-row>span>span{display:flex;min-width:0;flex-direction:column;gap:3px}
+.home-missions .mission-row b{font-size:11px;color:#e8edf3}
+.home-missions .mission-row small{font-size:9px;color:#848E9C;line-height:1.4}
+.home-missions .mission-row button{flex:none;border:1px solid #0ECB8144;border-radius:9px;background:#0ECB8115;padding:8px 9px;color:#0ECB81;font-size:9px;font-weight:800}
+.home-missions .mission-row button:disabled{border-color:#2B3139;background:#1a1e23;color:#737d88;opacity:1}
