@@ -64,7 +64,7 @@ const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:2,xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:570,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
+  return {version:2,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:570,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -79,7 +79,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   }
   state.buildings=Array.isArray(source.buildings)?source.buildings.filter((b:unknown)=>object(b).name).map((b:unknown,i:number)=>{const x=object(b);return{id:String(x.id??"legacy-building-"+i),name:String(x.name),icon:String(x.icon??"🏢"),cost:number(x.cost),value:number(x.value,number(x.cost)),income:number(x.income),level:Math.max(1,number(x.level,1))};}):[];
   state.activity=Array.isArray(source.activity)?source.activity.slice(0,100):[];
-  state.trades=number(source.trades);state.realizedPnl=number(source.realizedPnl);state.xp=number(source.xp);state.rank=String(source.rank??"Apprentice");state.missions=Array.isArray(source.missions)?source.missions:createDefaultMissions();state.weeklyChallenge=object(source.weeklyChallenge).bots?source.weeklyChallenge:createWeeklyChallenge(Math.ceil(number(source.marketSnapshot?.day,1)/7),number(source.start,10000));
+  state.trades=number(source.trades);state.realizedPnl=number(source.realizedPnl);state.profileName=String(source.profileName??source.name??"");state.xp=number(source.xp);state.rank=String(source.rank??"Apprentice");state.missions=Array.isArray(source.missions)?source.missions:createDefaultMissions();state.weeklyChallenge=object(source.weeklyChallenge).bots?source.weeklyChallenge:createWeeklyChallenge(Math.ceil(number(source.marketSnapshot?.day,1)/7),number(source.start,10000));
   state.achievements=strings(source.achievements);
   state.watchlist=strings(source.watch).length?strings(source.watch):state.watchlist;
   state.settings={...defaultSettings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)};
