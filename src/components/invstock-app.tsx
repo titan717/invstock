@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Bookmark, BriefcaseBusiness, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Crown, Flame, Home, Landmark, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Wallet, X, Zap } from "lucide-react";
 import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
+import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, INITIAL_DEPOSIT, initialPortfolio, portfolioValue, type Portfolio } from "@/lib/simulator";
 
 type Tab = "Home" | "Discovery" | "Options" | "News" | "Account";
@@ -26,14 +27,15 @@ function BottomNav({active,onChange}:{active:Tab;onChange:(tab:Tab)=>void}) {
  return <nav className="bottom-nav" aria-label="Main navigation">{items.map(([name,Icon])=><button key={name} className={active===name?"nav-item active":"nav-item"} onClick={()=>onChange(name)} aria-current={active===name?"page":undefined}><span className="nav-icon"><Icon size={20}/>{name==="Account"&&<i className="notification-dot"/>}</span><span>{name}</span></button>)}</nav>;
 }
 function Sparkline({stock}:{stock:Stock}) {const data=stock.history.map((v,i)=>({i,v}));return <div className="sparkline"><ResponsiveContainer width="100%" height="100%"><LineChart data={data}><Line type="monotone" dataKey="v" stroke={stock.change>=0?"#0ECB81":"#F6465D"} strokeWidth={1.8} dot={false} isAnimationActive={false}/></LineChart></ResponsiveContainer></div>}
-function StockLogo({stock,size=40}:{stock:Stock;size?:number}) {return <div className="stock-logo" style={{width:size,height:size,background:stock.color+"22",color:stock.color,borderColor:stock.color+"55"}}>{stock.ticker.slice(0,2)}</div>}
+function StockLogo({stock,size=40}:{stock:Stock;size?:number}) {return <CompanyLogo ticker={stock.ticker} name={stock.name} size={size}/>;}
 function StockRow({stock,onClick,mode="price"}:{stock:Stock;onClick:()=>void;mode?:"price"|"volume"}) {return <button className="stock-row" onClick={onClick}><StockLogo stock={stock}/><span className="stock-meta"><b>{stock.ticker}</b><small>{mode==="volume"?stock.name:stock.name}</small></span><Sparkline stock={stock}/><span className="stock-quote"><b className={stock.change>=0?"gain":"loss"}>{mode==="volume"?`Vol ${(stock.volume/1e6).toFixed(1)}M`:money(stock.price)}</b><small className={stock.change>=0?"pill gain-pill":"pill loss-pill"}>{signed(stock.change)}</small></span><ChevronRight size={16} className="row-chevron"/></button>}
 function SectionTitle({title,action,onAction}:{title:string;action?:string;onAction?:()=>void}) {return <div className="section-title"><h2>{title}</h2>{action&&<button onClick={onAction}>{action}<ChevronRight size={14}/></button>}</div>}
-function Chart({data}:{data:{label:string;value:number}[]}) {return <div className="main-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{top:10,right:2,left:0,bottom:0}}><defs><linearGradient id="heroFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#0ECB81" stopOpacity={.28}/><stop offset="95%" stopColor="#0ECB81" stopOpacity={0}/></linearGradient></defs><Area type="monotone" dataKey="value" stroke="#0ECB81" strokeWidth={2.5} fill="url(#heroFill)" isAnimationActive={true} animationDuration={500}/><XAxis dataKey="label" hide/><YAxis hide domain={["dataMin - 120","dataMax + 120"]}/><Tooltip contentStyle={{background:"#1A1D21",border:"1px solid #2B3139",borderRadius:12,color:"#fff"}} labelStyle={{color:"#848E9C"}}/></AreaChart></ResponsiveContainer></div>}
+function Chart({data}:{data:{label:string;value:number}[]}) {const rising=data.length<2||data[data.length-1].value>=data[0].value;const color=rising?"#0ECB81":"#F6465D";const gradient=rising?"#0ECB81":"#F6465D";return <div className={`main-chart ${rising?"chart-positive":"chart-negative"}`}><ResponsiveContainer width="100%" height="100%"><AreaChart data={data} margin={{top:12,right:3,left:0,bottom:0}}><defs><linearGradient id={rising?"heroFillPositive":"heroFillNegative"} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={gradient} stopOpacity={.3}/><stop offset="95%" stopColor={gradient} stopOpacity={0}/></linearGradient></defs><Area type="monotone" dataKey="value" stroke={color} strokeWidth={2.6} fill={`url(#${rising?"heroFillPositive":"heroFillNegative"})`} isAnimationActive={true} animationDuration={350}/><XAxis dataKey="label" hide/><YAxis hide domain={["dataMin - 1","dataMax + 1"]}/><Tooltip formatter={(value)=>money(Number(value))} contentStyle={{background:"#111519",border:`1px solid ${color}66`,borderRadius:12,color:"#fff",boxShadow:`0 0 16px ${color}33`}} labelStyle={{color:"#848E9C"}}/></AreaChart></ResponsiveContainer></div>}
 export default function InvStockApp(){
  const [tab,setTab]=useState<Tab>("Home");
  const [stocks,setStocks]=useState<Stock[]>(()=>createMarket());
  const [portfolio,setPortfolio]=useState<Portfolio>(initialPortfolio);
+ const [portfolioHistory,setPortfolioHistory]=useState<{label:string;value:number}[]>(()=>[{label:"Start",value:portfolioValue(initialPortfolio,createMarket())}]);
  const [selected,setSelected]=useState<Stock|null>(null);
  const [modal,setModal]=useState<Modal>(null);
  const [newsIndex,setNewsIndex]=useState(0);
@@ -54,12 +56,12 @@ export default function InvStockApp(){
 
  useEffect(()=>{try{const raw=localStorage.getItem("invstock-v2");if(raw){const data=JSON.parse(raw);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);}}catch{}setReady(true);},[]);
  useEffect(()=>{if(!ready)return;try{localStorage.setItem("invstock-v2",JSON.stringify({portfolio,saved}));}catch{}},[portfolio,saved,ready]);
- useEffect(()=>{const id=window.setInterval(()=>setStocks(current=>advanceMarket(current)),4500);return()=>window.clearInterval(id);},[]);
+ useEffect(()=>{const id=window.setInterval(()=>setStocks(current=>{const next=advanceMarket(current);setPortfolioHistory(history=>[...history.slice(-719),{label:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"}),value:portfolioValue(portfolio,next)}]);return next;}),4500);return()=>window.clearInterval(id);},[portfolio]);
  useEffect(()=>{if(!selected)return;const latest=stocks.find(stock=>stock.ticker===selected.ticker);if(latest&&latest!==selected)setSelected(latest);},[stocks,selected]);
  useEffect(()=>{if(!toast)return;const id=window.setTimeout(()=>setToast(""),2600);return()=>window.clearTimeout(id);},[toast]);
 
  const totalValue=useMemo(()=>portfolioValue(portfolio,stocks),[portfolio,stocks]);
- const chartData=useMemo(()=>Array.from({length:48},(_,i)=>({label:i%8===0?`-${(47-i)*30}m`:"",value:totalValue+(i-47)*((totalValue-INITIAL_DEPOSIT)/47)+Math.sin(i/3)*42})),[totalValue]);
+ const chartData=useMemo(()=>{const count:Record<string,number>={"1D":48,"1W":96,"1M":180,"3M":360,"1Y":600,"ALL":720};return portfolioHistory.slice(-count[timeframe]).map(point=>({label:point.label,value:point.value}));},[portfolioHistory,timeframe]);
  const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;
  const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:stockByTicker(ticker),holding:h})).filter(x=>x.stock);
  const filtered=stocks.filter(s=>(sector==="All"||s.sector===sector)&&(`${s.ticker} ${s.name}`.toLowerCase().includes(search.toLowerCase())));
