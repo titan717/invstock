@@ -50,9 +50,10 @@ export function resolvePendingRumours(state:GameState,stocks:Stock[],absoluteTic
     const direction=confirmed?event.sentiment:-event.sentiment;
     if(stock){
       const multiplier=confirmed?.8:1.15;
-      const price=Math.max(.5,stock.price*(1+direction*Number(event.magnitude??0)*multiplier));
+      const previous=stock.price;
+      const price=Math.max(.5,previous*(1+direction*Number(event.magnitude??0)*multiplier));
       stock.price=Number(price.toFixed(2));
-      stock.change+=(price/Math.max(.01,stock.price)-1)*100;
+      stock.change+=(price/Math.max(.01,previous)-1)*100;
       stock.history=[...stock.history.slice(-389),stock.price];
     }
     const followUp:GameNews={...event,id:event.id+1,headline:confirmed?"Rumour confirmed: "+(stock?.name??ticker):"Rumour debunked: "+(stock?.name??ticker),type:"aftermath",sentiment:direction,after:null};
