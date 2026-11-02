@@ -1,0 +1,28 @@
+name: InvStock CI
+
+on:
+  push:
+    branches: ["feat/invstock-nextjs-rebuild"]
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "src/**"
+      - "package.json"
+      - "tsconfig.json"
+      - "tailwind.config.ts"
+      - "next.config.ts"
+      - "vitest.config.ts"
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
