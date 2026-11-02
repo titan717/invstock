@@ -90,10 +90,13 @@ export default function InvStockApp(){
  }catch{}},[portfolio,saved,ready,game,stocks]);
  useEffect(()=>{const id=window.setInterval(()=>{
   if(document.hidden)return;
-  let nextStocks=advanceMarket(stocksRef.current);
   let nextGame=structuredClone(gameRef.current);
   const speed=nextGame.settings.speed;
   if(speed<=0)return;
+  const marketSeed=nextGame.prngSeed>>>0;
+  let nextStocks=advanceMarket(stocksRef.current,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic");
+  nextGame.prngSeed=(marketSeed*1664525+1013904223)>>>0;
+  if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
   for(let step=0;step<speed;step++){
     const regime=nextGame.market.regime;
     const incomeFactor=regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1;
