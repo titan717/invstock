@@ -7,7 +7,7 @@ import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, INITIAL_DEPOSIT, initialPortfolio, portfolioValue, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
-import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, migrateLegacySave, restoreMarketSnapshot, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
 
@@ -78,7 +78,7 @@ export default function InvStockApp(){
   const current=localStorage.getItem("invstock-v2");
   let restored:GameState|null=null;
   if(legacy&&!legacyMigrated){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);localStorage.setItem("invstock-legacy-migrated","true");}
-  else if(savedGame){const parsed=JSON.parse(savedGame);restored=parsed?.version===2?parsed as GameState:migrateLegacySave(parsed,stocksRef.current);}
+  else if(savedGame){const parsed=JSON.parse(savedGame);restored=hydrateGameState(parsed,stocksRef.current);}
   else if(current){const data=JSON.parse(current);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);if(data.portfolio)restored=gameFromPortfolio(data.portfolio,stocksRef.current);}
   if(restored){const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setPortfolioHistory(restored.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));}
  }catch{setToast("A saved game could not be fully restored. Your current session remains available.");}
@@ -163,7 +163,7 @@ const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:sto
  const cycleSpeed=()=>{const values=[0,1,2,4];const current=gameRef.current.settings.speed;changeSpeed(values[(values.indexOf(current)+1)%values.length]);};
  const changeSetting=(key:"sound"|"haptics",value:boolean)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,[key]:value}};gameRef.current=next;setGame(next);};
  const exportSave=()=>{const payload=JSON.stringify({...gameRef.current,market:{...gameRef.current.market,stocks:Object.fromEntries(stocksRef.current.map(stock=>[stock.ticker,stock]))}},null,2);const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="invstock-save.json";anchor.click();URL.revokeObjectURL(url);};
- const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=parsed?.version===2?parsed as GameState:migrateLegacySave(parsed,stocksRef.current);gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setSaved(imported.watchlist);setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
+ const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setSaved(imported.watchlist);setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
  const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);setSaved(["NVDA","MSFT"]);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
  const addDigit=(digit:string)=>setAmount(v=>digit==="back"?v.slice(0,-1):digit==="."?(v.includes(".")?v:v+"."):(v==="0"?digit:v+digit));
  const toggleSaved=(ticker:string)=>setSaved(v=>v.includes(ticker)?v.filter(t=>t!==ticker):[...v,ticker]);
