@@ -1,5 +1,8 @@
 import type { Stock } from "@/lib/market";
 
+export const MARKET_OPEN_MINUTE = 570;
+export const MARKET_SESSION_MINUTES = 390;
+
 export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
@@ -69,7 +72,7 @@ const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:2,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:570,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
+  return {version:2,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -96,7 +99,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.best=number(source.best,state.best);state.start=number(source.start,state.start);
   state.lastDay=number(source.lastDay,1);state.lastBankDay=number(source.lastBankDay,1);
   const snapshot=object(source.marketSnapshot);
-  state.market={regime:String(snapshot.regime??"Sideways"),day:number(snapshot.day,1),minute:number(snapshot.minute,570),marketFactor:number(snapshot.marketFactor),sectorFactors:object(snapshot.sectorFactors) as Record<string,number>,stocks:object(snapshot.stocks)};
+  state.market={regime:String(snapshot.regime??"Sideways"),day:number(snapshot.day,1),minute:number(snapshot.minute,MARKET_OPEN_MINUTE),marketFactor:number(snapshot.marketFactor),sectorFactors:object(snapshot.sectorFactors) as Record<string,number>,stocks:object(snapshot.stocks)};
   state.news=Array.isArray(source.news)?source.news:[];
   state.pendingNews=Array.isArray(source.pendingNews)?source.pendingNews:[];
   state.prngSeed=number(source.prngSeed,731991)>>>0;
@@ -129,7 +132,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     history:Array.isArray(source.history)?source.history.slice(-1950):[],
     dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
     holdSince:object(source.holdSince) as Record<string,number>,
-    market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,570),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
+    market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
     news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
     prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay)
   };
