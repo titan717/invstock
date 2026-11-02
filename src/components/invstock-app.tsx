@@ -1,16 +1,30 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Bookmark, BriefcaseBusiness, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Crown, Flame, Home, Landmark, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Wallet, X, Zap } from "lucide-react";
 import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, INITIAL_DEPOSIT, initialPortfolio, portfolioValue, type Portfolio } from "@/lib/simulator";
+import { AccountGamePanels } from "@/components/account/AccountGamePanels";
+import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, migrateLegacySave, type GameState } from "@/lib/game-engine";
+import { applyMarketEvent, createMarketEvent, evaluateAchievements, resolvePendingRumours } from "@/lib/game-runtime";
 
 type Tab = "Home" | "Discovery" | "Options" | "News" | "Account";
 type Modal = "trade" | "news" | null;
 const money = (n:number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
 const signed = (n:number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}%`;
+function portfolioFromGame(state:GameState):Portfolio {
+ return {cash:state.cash,holdings:Object.fromEntries(Object.entries(state.holdings)),realizedPnl:state.realizedPnl,trades:state.trades};
+}
+function gameFromPortfolio(portfolio:Portfolio,stocks:Stock[]):GameState {
+ const state=createGameState();
+ state.cash=portfolio.cash;state.holdings=Object.fromEntries(Object.entries(portfolio.holdings));state.realizedPnl=portfolio.realizedPnl;state.trades=portfolio.trades;
+ state.market.stocks=Object.fromEntries(stocks.map(stock=>[stock.ticker,stock]));
+ state.history=[{v:portfolioValue(portfolio,stocks),t:1}];state.dailyHistory=[{v:portfolioValue(portfolio,stocks),t:1}];
+ state.best=Math.max(state.best,portfolioValue(portfolio,stocks));state.start=INITIAL_DEPOSIT;
+ return state;
+}
 const fmtCompact = (n:number) => n >= 1e12 ? `$${(n/1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : money(n);
 const newsItems = [
   {source:"Trading Post",time:"7h 6m ago",ticker:"NVDA",tone:"up",title:"Nvidia expands its next-generation AI platform as demand accelerates",body:"The simulated company update points to stronger demand across data-centre customers. Chipmakers are leading today's sector rotation."},
@@ -35,6 +49,9 @@ export default function InvStockApp(){
  const [tab,setTab]=useState<Tab>("Home");
  const [stocks,setStocks]=useState<Stock[]>(()=>createMarket());
  const [portfolio,setPortfolio]=useState<Portfolio>(initialPortfolio);
+ const [game,setGame]=useState<GameState>(()=>gameFromPortfolio(initialPortfolio,createMarket()));
+ const stocksRef=useRef(stocks);
+ const gameRef=useRef(game);
  const [portfolioHistory,setPortfolioHistory]=useState<{label:string;value:number}[]>(()=>[{label:"Start",value:portfolioValue(initialPortfolio,createMarket())}]);
  const [selected,setSelected]=useState<Stock|null>(null);
  const [modal,setModal]=useState<Modal>(null);
@@ -54,14 +71,66 @@ export default function InvStockApp(){
  const [saved,setSaved]=useState<string[]>(["NVDA","MSFT"]);
  const [ready,setReady]=useState(false);
 
- useEffect(()=>{try{const raw=localStorage.getItem("invstock-v2");if(raw){const data=JSON.parse(raw);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);}}catch{}setReady(true);},[]);
- useEffect(()=>{if(!ready)return;try{localStorage.setItem("invstock-v2",JSON.stringify({portfolio,saved}));}catch{}},[portfolio,saved,ready]);
- useEffect(()=>{const id=window.setInterval(()=>setStocks(current=>{const next=advanceMarket(current);setPortfolioHistory(history=>[...history.slice(-719),{label:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit",second:"2-digit"}),value:portfolioValue(portfolio,next)}]);return next;}),4500);return()=>window.clearInterval(id);},[portfolio]);
+ useEffect(()=>{try{
+  const legacy=localStorage.getItem("ticker_game_v1");
+  const savedGame=localStorage.getItem("invstock-game-v2");
+  const current=localStorage.getItem("invstock-v2");
+  let restored:GameState|null=null;
+  if(legacy){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);}
+  else if(savedGame){const parsed=JSON.parse(savedGame);restored=parsed?.version===2?parsed as GameState:migrateLegacySave(parsed,stocksRef.current);}
+  else if(current){const data=JSON.parse(current);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);if(data.portfolio)restored=gameFromPortfolio(data.portfolio,stocksRef.current);}
+  if(restored){gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setPortfolioHistory(restored.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));}
+ }catch{setToast("A saved game could not be fully restored. Your current session remains available.");}
+ setReady(true);},[]);
+ useEffect(()=>{if(!ready)return;try{
+  const persisted={...game,market:{...game.market,stocks:Object.fromEntries(stocks.map(stock=>[stock.ticker,stock]))}};
+  localStorage.setItem("invstock-game-v2",JSON.stringify(persisted));
+  localStorage.setItem("invstock-v2",JSON.stringify({portfolio,saved}));
+ }catch{}},[portfolio,saved,ready,game,stocks]);
+ useEffect(()=>{const id=window.setInterval(()=>{
+  if(document.hidden)return;
+  let nextStocks=advanceMarket(stocksRef.current);
+  let nextGame=structuredClone(gameRef.current);
+  const speed=nextGame.settings.speed;
+  if(speed<=0)return;
+  for(let step=0;step<speed;step++){
+    const regime=nextGame.market.regime;
+    const incomeFactor=regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1;
+    nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
+    nextGame.market.minute+=1;
+    if(nextGame.market.minute>=960){
+      const previousDay=nextGame.market.day;
+      nextGame.market.minute=570;
+      nextGame=advanceGameDay(nextGame,nextStocks).state;
+      const worth=calculateNetWorth(nextGame,nextStocks);
+      nextGame.dailyHistory=[...nextGame.dailyHistory.slice(-3649),{v:worth,t:previousDay+1}];
+    }
+    const worth=calculateNetWorth(nextGame,nextStocks);
+    const last=nextGame.history.at(-1)?.t??0;
+    nextGame.history=[...nextGame.history.slice(-1949),{v:worth,t:last+1}];
+    nextGame.best=Math.max(nextGame.best,worth);
+  }
+  if(!nextGame.eventsNextAt)nextGame.eventsNextAt=Date.now()+20000;
+  if(Date.now()>=nextGame.eventsNextAt){
+    const seed=nextGame.prngSeed;
+    const event=createMarketEvent(nextGame,nextStocks,seed);
+    nextStocks=applyMarketEvent(nextGame,nextStocks,event);
+    nextGame.prngSeed=(seed*1664525+1013904223)>>>0;
+    nextGame.eventsNextAt=Date.now()+20000+(nextGame.prngSeed%40001);
+  }
+  const absoluteTick=nextGame.market.day*390+(nextGame.market.minute-570);
+  resolvePendingRumours(nextGame,nextStocks,absoluteTick);
+  evaluateAchievements(nextGame,nextStocks);
+  nextGame.market.stocks=Object.fromEntries(nextStocks.map(stock=>[stock.ticker,stock]));
+  stocksRef.current=nextStocks;gameRef.current=nextGame;
+  setStocks(nextStocks);setGame(nextGame);setPortfolio(portfolioFromGame(nextGame));
+  setPortfolioHistory(history=>[...history.slice(-719),{label:"Day "+nextGame.market.day+" · "+String(Math.floor(nextGame.market.minute/60)).padStart(2,"0")+":"+String(nextGame.market.minute%60).padStart(2,"0"),value:calculateNetWorth(nextGame,nextStocks)}]);
+ },4500);return()=>window.clearInterval(id);},[]);
  useEffect(()=>{if(!selected)return;const latest=stocks.find(stock=>stock.ticker===selected.ticker);if(latest&&latest!==selected)setSelected(latest);},[stocks,selected]);
  useEffect(()=>{if(!toast)return;const id=window.setTimeout(()=>setToast(""),2600);return()=>window.clearTimeout(id);},[toast]);
 
- const totalValue=useMemo(()=>portfolioValue(portfolio,stocks),[portfolio,stocks]);
- const chartData=useMemo(()=>{const count:Record<string,number>={"1D":48,"1W":96,"1M":180,"3M":360,"1Y":600,"ALL":720};return portfolioHistory.slice(-count[timeframe]).map(point=>({label:point.label,value:point.value}));},[portfolioHistory,timeframe]);
+ const totalValue=useMemo(()=>calculateNetWorth(game,stocks),[game,stocks]);
+ const chartData=useMemo(()=>{const count:Record<string,number>={"1D":48,"1W":96,"1M":180,"3M":360,"1Y":600,"ALL":720};const source=portfolioHistory.length?portfolioHistory:game.history.map(point=>({label:"Day "+point.t,value:point.v}));return source.slice(-count[timeframe]).map(point=>({label:point.label,value:point.value}));},[portfolioHistory,game.history,timeframe]);
  const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;
  const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:stockByTicker(ticker),holding:h})).filter(x=>x.stock);
  const filtered=stocks.filter(s=>(sector==="All"||s.sector===sector)&&(`${s.ticker} ${s.name}`.toLowerCase().includes(search.toLowerCase())));
