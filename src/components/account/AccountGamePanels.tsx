@@ -22,7 +22,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
   const [amount,setAmount]=useState("100");
   const [saveText,setSaveText]=useState("");
   const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
-  return <section className="game-panels">
+  return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
       {(["Bank","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
     </div>
