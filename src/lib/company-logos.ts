@@ -1,0 +1,13 @@
+export type CompanyLogoIdentity = { domain?: string; simpleIcon?: string; fallback: string };
+const identities: Record<string,{domain:string;simpleIcon?:string}> = {
+  MSFT:{domain:"microsoft.com",simpleIcon:"microsoft"},META:{domain:"meta.com",simpleIcon:"meta"},GOOGL:{domain:"google.com",simpleIcon:"google"},NVDA:{domain:"nvidia.com",simpleIcon:"nvidia"},AAPL:{domain:"apple.com",simpleIcon:"apple"},ORCL:{domain:"oracle.com",simpleIcon:"oracle"},
+  JPM:{domain:"jpmorganchase.com",simpleIcon:"jpmorgan"},VISA:{domain:"visa.com",simpleIcon:"visa"},PYPL:{domain:"paypal.com",simpleIcon:"paypal"},GS:{domain:"goldmansachs.com",simpleIcon:"goldmansachs"},XOM:{domain:"exxonmobil.com",simpleIcon:"exxonmobil"},ENPH:{domain:"enphase.com",simpleIcon:"enphaseenergy"},NEE:{domain:"nexteraenergy.com",simpleIcon:"nexteraenergy"},LLY:{domain:"lilly.com",simpleIcon:"lilly"},ISRG:{domain:"intuitive.com",simpleIcon:"intuitivesurgical"},MRNA:{domain:"modernatx.com",simpleIcon:"moderna"},COST:{domain:"costco.com",simpleIcon:"costco"},SHOP:{domain:"shopify.com",simpleIcon:"shopify"},COIN:{domain:"coinbase.com",simpleIcon:"coinbase"},BTCX:{domain:"bitcoin.org",simpleIcon:"bitcoin"},
+  AMD:{domain:"amd.com",simpleIcon:"amd"},AVGO:{domain:"broadcom.com",simpleIcon:"broadcom"},TSM:{domain:"tsmc.com"},QCOM:{domain:"qualcomm.com",simpleIcon:"qualcomm"},BAC:{domain:"bankofamerica.com",simpleIcon:"bankofamerica"},WFC:{domain:"wellsfargo.com",simpleIcon:"wellsfargo"},C:{domain:"citigroup.com",simpleIcon:"citigroup"},BKNG:{domain:"booking.com",simpleIcon:"bookingdotcom"},ABNB:{domain:"airbnb.com",simpleIcon:"airbnb"},DAL:{domain:"delta.com",simpleIcon:"delta"},CAT:{domain:"caterpillar.com",simpleIcon:"caterpillar"},GE:{domain:"ge.com",simpleIcon:"generalelectric"},HON:{domain:"honeywell.com",simpleIcon:"honeywell"},ADBE:{domain:"adobe.com",simpleIcon:"adobe"},CRM:{domain:"salesforce.com",simpleIcon:"salesforce"},AMZN:{domain:"amazon.com",simpleIcon:"amazon"},WMT:{domain:"walmart.com",simpleIcon:"walmart"},HD:{domain:"homedepot.com",simpleIcon:"homedepot"},UNH:{domain:"uhc.com"},ABBV:{domain:"abbvie.com"},CVX:{domain:"chevron.com",simpleIcon:"chevron"},SHEL:{domain:"shell.com",simpleIcon:"shell"},PLTR:{domain:"palantir.com"},
+  SPY:{domain:"ssga.com",simpleIcon:"spdr"},QQQ:{domain:"invesco.com",simpleIcon:"invesco"},VTI:{domain:"vanguard.com",simpleIcon:"vanguard"}
+};
+export function companyLogoFor(ticker:string):CompanyLogoIdentity {
+  const normalized=ticker.toUpperCase();
+  const identity=identities[normalized];
+  return {domain:identity?.domain,simpleIcon:identity?.simpleIcon,fallback:normalized.slice(0,4)||"STOCK"};
+}
+export const COMPANY_LOGO_TICKERS=Object.keys(identities);
