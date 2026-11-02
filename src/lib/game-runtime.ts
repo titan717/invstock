@@ -1,5 +1,5 @@
 import type { Stock } from "@/lib/market";
-import { ACHIEVEMENTS, calculateNetWorth, createWeeklyChallenge, type GameNews, type GameState } from "@/lib/game-engine";
+import { ACHIEVEMENTS, calculateNetWorth, createWeeklyChallenge, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, type GameNews, type GameState } from "@/lib/game-engine";
 
 const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,value));
 const templates:[string,string,string,number][]=[
@@ -34,7 +34,7 @@ export function createMarketEvent(state:GameState,stocks:Stock[],seed:number):Ga
   const sentiment=template[3]||(random()<.5?1:-1);
   const affected=template[2]==="macro"?stocks:template[2]==="sector"?stocks.filter(s=>s.sector===stock.sector):[stock];
   const rumour=template[2]==="rumor";
-  const event:GameNews={id:Math.floor(random()*1e9),headline:template[0]+(rumour?": Unverified chatter around "+stock.name:""),body:template[1],tickers:affected.map(s=>s.ticker),sentiment,magnitude,type:template[2],day:state.market.day,minute:state.market.minute,after:rumour?state.market.day*390+(state.market.minute-570)+15+Math.floor(random()*26):null,truth:random()<.56};
+  const event:GameNews={id:Math.floor(random()*1e9),headline:template[0]+(rumour?": Unverified chatter around "+stock.name:""),body:template[1],tickers:affected.map(s=>s.ticker),sentiment,magnitude,type:template[2],day:state.market.day,minute:state.market.minute,after:rumour?state.market.day*MARKET_SESSION_MINUTES+(state.market.minute-MARKET_OPEN_MINUTE)+15+Math.floor(random()*26):null,truth:random()<.56};
   state.news=[event,...state.news].slice(0,80);
   if(rumour)state.pendingNews=[event,...state.pendingNews];
   return event;
