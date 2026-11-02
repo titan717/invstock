@@ -309,3 +309,8 @@
 .watchlist-item>.stock-row{flex:1;border-bottom:0}
 .watchlist-item>button{display:grid;width:30px;height:30px;flex:none;place-items:center;border:1px solid #2B3139;border-radius:9px;background:#111519;color:#848E9C}
 .watchlist-item>button:hover{border-color:#F6465D66;color:#F6465D}
+
+.profile-name-label{font-size:10px;color:#dce4ea}
+.edit-profile{align-self:flex-start;margin-top:5px;border:1px solid #2B3139;border-radius:8px;background:#111519;padding:6px 9px;color:#848E9C;font-size:9px;font-weight:750}
+.edit-profile:hover{border-color:#0ECB8177;color:#0ECB81}
+.market-live{white-space:nowrap}
