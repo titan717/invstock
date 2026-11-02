@@ -18,7 +18,7 @@ describe("simulator trading", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.portfolio.cash).toBeLessThan(initialPortfolio.cash);
-    expect(result.portfolio.holdings.MSFT.quantity).toBeCloseTo(5.1);
+    expect(result.portfolio.holdings.MSFT.quantity).toBeCloseTo(initialPortfolio.holdings.MSFT.quantity + .1);
     expect(result.portfolio.trades).toBe(initialPortfolio.trades + 1);
   });
 
