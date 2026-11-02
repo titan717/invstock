@@ -292,3 +292,14 @@
 .home-missions .mission-row small{font-size:9px;color:#848E9C;line-height:1.4}
 .home-missions .mission-row button{flex:none;border:1px solid #0ECB8144;border-radius:9px;background:#0ECB8115;padding:8px 9px;color:#0ECB81;font-size:9px;font-weight:800}
 .home-missions .mission-row button:disabled{border-color:#2B3139;background:#1a1e23;color:#737d88;opacity:1}
+
+
+.home-welcome{margin:-2px 0 18px;color:#848E9C;font-size:12px}
+.profile-backdrop{align-items:center}
+.profile-modal{width:100%;max-width:410px;border:1px solid #2B3139;border-radius:26px;background:linear-gradient(145deg,#171d20,#0b0e11);padding:27px;box-shadow:0 0 55px #0ECB8118,0 24px 80px #000}
+.profile-mark{display:flex;justify-content:center;margin:0 auto 20px}
+.profile-mark .brand-mark{width:48px;height:48px;border-radius:16px;box-shadow:0 0 25px #0ECB8140}
+.profile-modal>.eyebrow{text-align:center;color:#0ECB81}
+.profile-modal h2{margin:8px 0;text-align:center;font-size:25px;font-weight:850;letter-spacing:-.7px}
+.profile-modal>.game-muted{text-align:center;margin:0 0 22px}
+.profile-modal .review-button{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px}
