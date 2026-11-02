@@ -60,7 +60,6 @@ export default function InvStockApp(){
  const [game,setGame]=useState<GameState>(()=>gameFromPortfolio(initialPortfolio,createMarket()));
  const stocksRef=useRef(stocks);
  const gameRef=useRef(game);
- const [portfolioHistory,setPortfolioHistory]=useState<{label:string;value:number}[]>(()=>game.history.map(point=>({label:"Day "+point.t,value:point.v})));
  const [selected,setSelected]=useState<Stock|null>(null);
  const [modal,setModal]=useState<Modal>(null);
  const [newsIndex,setNewsIndex]=useState(0);
