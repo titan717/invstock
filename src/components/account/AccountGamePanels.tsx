@@ -56,7 +56,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
       <div className="game-speed-options">{[0,1,2,5,60,390].map(speed=><button key={speed} className={state.settings.speed===speed?"selected":""} onClick={()=>onSpeed(speed)}>{speed===0?"Pause":speed+"×"}</button>)}</div>
       <label className="game-setting-row"><span><b>Sound effects</b><small>Trade and market event sounds</small></span><input type="checkbox" checked={state.settings.sound} onChange={e=>onSetting("sound",e.target.checked)}/></label>
       <label className="game-setting-row"><span><b>Haptic feedback</b><small>Subtle feedback on supported devices</small></span><input type="checkbox" checked={state.settings.haptics} onChange={e=>onSetting("haptics",e.target.checked)}/></label>
-      <h3>Save data</h3>
+      <h3>How to play</h3><p className="game-muted">Buy and sell simulated shares using the market price, spread and trading fee. Use the Bank to earn savings interest or borrow against your net worth. Properties generate income each simulated market minute. Market events and rumours can move individual stocks, sectors or the whole market. Hold positions for seven market days to earn Diamond Hands, and manage debt to avoid margin calls.</p><h3>Save data</h3>
       <p className="game-muted">Export a local backup or import a previously exported InvStock save.</p>
       <button className="game-primary-action" onClick={onExport}>Export save</button>
       <textarea className="game-import-area" aria-label="Save data JSON" value={saveText} onChange={e=>setSaveText(e.target.value)} placeholder="Paste an InvStock save JSON here"/>
