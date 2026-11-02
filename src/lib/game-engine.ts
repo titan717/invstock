@@ -99,9 +99,10 @@ export function restoreMarketSnapshot(state:GameState, stocks:Stock[]):Stock[] {
     const daily=Array.isArray(raw.daily)?raw.daily:[];
     const savedHistory=candles.map((item:unknown)=>number(object(item).c)).filter((value:number)=>value>0);
     const dailyHistory=daily.map((item:unknown)=>number(object(item).c)).filter((value:number)=>value>0);
-    const history=[...dailyHistory.slice(-252),...savedHistory.slice(-390)].slice(-390);
+    const directHistory=Array.isArray(raw.history)?raw.history.filter((value:unknown)=>typeof value==="number"&&Number.isFinite(value)) as number[]:[];
+    const history=directHistory.length?directHistory.slice(-390):[...dailyHistory.slice(-252),...savedHistory.slice(-390)].slice(-390);
     const open=number(raw.open,base.price);
-    return {...base,price,change:open>0?(price/open-1)*100:base.change,volume:number(raw.volume,base.volume),marketCap:number(raw.cap,base.marketCap),pe:number(raw.pe,base.pe),dividend:number(raw.div,base.dividend),beta:number(raw.beta,base.beta),history:history.length?history:base.history};
+    return {...base,price,change:number(raw.change,open>0?(price/open-1)*100:base.change),volume:number(raw.volume,base.volume),marketCap:number(raw.marketCap,number(raw.cap,base.marketCap)),pe:number(raw.pe,base.pe),dividend:number(raw.dividend,number(raw.div,base.dividend)),beta:number(raw.beta,base.beta),history:history.length?history:base.history};
   });
 }
 
