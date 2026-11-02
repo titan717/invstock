@@ -34,7 +34,20 @@ describe("full simulator account panels", () => {
     fireEvent.click(screen.getByRole("button",{name:"Achievements"}));
     expect(screen.getByText("First Profit")).toBeTruthy();
     expect(screen.getByText("Unlocked")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button",{name:"4×"}));
+    fireEvent.click(screen.getByRole("button",{name:"5×"}));
     expect(onSpeed).toHaveBeenCalledWith(4);
+  });
+
+  it("requires an explicit in-app confirmation before resetting progress", () => {
+    const onReset=vi.fn();
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={onReset}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Settings"}));
+    fireEvent.click(screen.getByRole("button",{name:"Reset simulator"}));
+    expect(onReset).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Cancel"}));
+    expect(onReset).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Reset simulator"}));
+    fireEvent.click(screen.getByRole("button",{name:"Yes, reset everything"}));
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 });
