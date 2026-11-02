@@ -7,7 +7,7 @@ import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, INITIAL_DEPOSIT, initialPortfolio, portfolioValue, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
-import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, migrateLegacySave, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, migrateLegacySave, restoreMarketSnapshot, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, createMarketEvent, evaluateAchievements, resolvePendingRumours } from "@/lib/game-runtime";
 
 type Tab = "Home" | "Discovery" | "Options" | "News" | "Account";
@@ -73,13 +73,14 @@ export default function InvStockApp(){
 
  useEffect(()=>{try{
   const legacy=localStorage.getItem("ticker_game_v1");
+  const legacyMigrated=localStorage.getItem("invstock-legacy-migrated")==="true";
   const savedGame=localStorage.getItem("invstock-game-v2");
   const current=localStorage.getItem("invstock-v2");
   let restored:GameState|null=null;
-  if(legacy){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);}
+  if(legacy&&!legacyMigrated){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);localStorage.setItem("invstock-legacy-migrated","true");}
   else if(savedGame){const parsed=JSON.parse(savedGame);restored=parsed?.version===2?parsed as GameState:migrateLegacySave(parsed,stocksRef.current);}
   else if(current){const data=JSON.parse(current);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);if(data.portfolio)restored=gameFromPortfolio(data.portfolio,stocksRef.current);}
-  if(restored){gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setPortfolioHistory(restored.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));}
+  if(restored){const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setPortfolioHistory(restored.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));}
  }catch{setToast("A saved game could not be fully restored. Your current session remains available.");}
  setReady(true);},[]);
  useEffect(()=>{if(!ready)return;try{
