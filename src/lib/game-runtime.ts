@@ -79,7 +79,21 @@ export function evaluateAchievements(state:GameState,stocks:Stock[]):{id:string;
 
 export function updateProgression(state:GameState,stocks:Stock[],seed:number):void {
   const week=Math.ceil(state.market.day/7);
-  if(state.weeklyChallenge.week!==week&&(!state.weeklyChallenge.joined||state.weeklyChallenge.claimed))state.weeklyChallenge=createWeeklyChallenge(week,calculateNetWorth(state,stocks));
+  const previousChallenge=state.weeklyChallenge;
+  if(previousChallenge.week!==week){
+    const gracePeriodExpired=week>previousChallenge.week+1;
+    if(previousChallenge.joined&&!previousChallenge.claimed&&gracePeriodExpired){
+      const playerReturn=(calculateNetWorth(state,stocks)/Math.max(1,previousChallenge.startValue)-1)*100;
+      const place=previousChallenge.bots.filter(bot=>bot.returnPct>playerReturn).length+1;
+      const reward=place===1?previousChallenge.reward:150;
+      state.cash+=reward;
+      state.xp+=place===1?150:50;
+      state.activity=[{type:"weekly-reward",amount:reward,day:state.market.day},...state.activity].slice(0,100);
+    }
+    if(!previousChallenge.joined||previousChallenge.claimed||gracePeriodExpired){
+      state.weeklyChallenge=createWeeklyChallenge(week,calculateNetWorth(state,stocks));
+    }
+  }
   let randomState=seed>>>0;
   const random=()=>{randomState=(randomState*1664525+1013904223)>>>0;return randomState/4294967296;};
   state.weeklyChallenge.bots=state.weeklyChallenge.bots.map(bot=>({...bot,returnPct:bot.returnPct+(random()-.49)*bot.risk*.12}));
