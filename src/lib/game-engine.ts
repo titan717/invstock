@@ -89,6 +89,22 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   return state;
 }
 
+export function restoreMarketSnapshot(state:GameState, stocks:Stock[]):Stock[] {
+  const saved=state.market.stocks;
+  return stocks.map(base=>{
+    const raw=object(saved[base.ticker]);
+    if(!Object.keys(raw).length)return base;
+    const price=number(raw.price,base.price);
+    const candles=Array.isArray(raw.candles)?raw.candles:[];
+    const daily=Array.isArray(raw.daily)?raw.daily:[];
+    const savedHistory=candles.map((item:unknown)=>number(object(item).c)).filter((value:number)=>value>0);
+    const dailyHistory=daily.map((item:unknown)=>number(object(item).c)).filter((value:number)=>value>0);
+    const history=[...dailyHistory.slice(-252),...savedHistory.slice(-390)].slice(-390);
+    const open=number(raw.open,base.price);
+    return {...base,price,change:open>0?(price/open-1)*100:base.change,volume:number(raw.volume,base.volume),marketCap:number(raw.cap,base.marketCap),pe:number(raw.pe,base.pe),dividend:number(raw.div,base.dividend),beta:number(raw.beta,base.beta),history:history.length?history:base.history};
+  });
+}
+
 export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const prices=new Map(stocks.map(s=>[s.ticker,s.price]));
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
