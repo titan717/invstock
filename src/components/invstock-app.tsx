@@ -132,7 +132,9 @@ export default function InvStockApp(){
 
  const totalValue=useMemo(()=>calculateNetWorth(game,stocks),[game,stocks]);
  const chartData=useMemo(()=>{const count:Record<string,number>={"1D":48,"1W":96,"1M":180,"3M":360,"1Y":600,"ALL":720};const source=portfolioHistory.length?portfolioHistory:game.history.map(point=>({label:"Day "+point.t,value:point.v}));return source.slice(-count[timeframe]).map(point=>({label:point.label,value:point.value}));},[portfolioHistory,game.history,timeframe]);
- const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;\n const optionExpiryDays=Number(optionExpiry.match(/(\\d+)d/)?.[1]??4);\n const optionRows=useMemo(()=>generateOptionChain(stockByTicker("NVDA"),optionExpiryDays,optionSide==="Calls"?"call":"put"),[stocks,optionExpiryDays,optionSide]);
+ const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;
+ const optionExpiryDays=Number(optionExpiry.match(/(\d+)d/)?.[1]??4);
+ const optionRows=useMemo(()=>generateOptionChain(stockByTicker("NVDA"),optionExpiryDays,optionSide==="Calls"?"call":"put"),[stocks,optionExpiryDays,optionSide]);
  
  const activeNews=game.news.length?game.news.map(event=>({source:event.type==="aftermath"?"Rumour desk":"Market simulator",time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers})):newsItems;
 const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:stockByTicker(ticker),holding:h})).filter(x=>x.stock);
