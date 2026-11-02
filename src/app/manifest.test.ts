@@ -14,8 +14,8 @@ describe("InvStock PWA manifest", () => {
   });
 
   it("provides a maskable application icon", () => {
-    const icon = manifest().icons?.[0];
-    expect(icon?.src).toBe("/icon.svg");
-    expect(icon?.purpose).toContain("maskable");
+    const icons = manifest().icons ?? [];
+    expect(icons.some((icon) => icon.src === "/icon.svg" && icon.purpose === "any")).toBe(true);
+    expect(icons.some((icon) => icon.src === "/icon.svg" && icon.purpose === "maskable")).toBe(true);
   });
 });
