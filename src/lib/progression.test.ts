@@ -31,7 +31,6 @@ describe("missions and weekly trading challenge", () => {
 
   it("rotates the weekly challenge after seven simulated days", () => {
     const state=createGameState();const market=createMarket();
-    joinWeeklyChallenge(state,market);
     const previous=state.weeklyChallenge.week;
     state.market.day=8;
     updateProgression(state,market,200);
