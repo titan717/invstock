@@ -315,3 +315,9 @@
 .edit-profile:hover{border-color:#0ECB8177;color:#0ECB81}
 .market-live{white-space:nowrap}
 .quote-muted{color:#848E9C!important;text-shadow:none!important}
+.game-reset-confirm{margin-top:14px;border:1px solid #F6465D55;border-radius:13px;background:#F6465D0D;padding:14px}
+.game-reset-confirm>b{font-size:13px;color:#f2f4f7}
+.game-reset-confirm>p{margin:6px 0 12px;color:#848E9C;font-size:11px;line-height:1.5}
+.game-reset-confirm>div{display:flex;flex-wrap:wrap;gap:8px}
+.game-reset-confirm button{min-height:36px;border-radius:9px;padding:8px 11px;font-size:10px;font-weight:800}
+.game-reset-confirm .game-reset-action{background:#F6465D;color:#fff}
