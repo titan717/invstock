@@ -64,7 +64,7 @@ export function createMarket(seed = 731991): Stock[] {
   const random = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 4294967296; };
   return [...definitions, ...etfs].map(([ticker,name,sector,base,vol,drift,beta,cap,pe,dividend,color]) => {
     let p = base;
-    const history = Array.from({length: 48}, () => {
+    const history = Array.from({length: 390}, () => {
       p = Math.max(.5, p * Math.exp(drift / 48 + (random() - .5) * vol / 4));
       return Number(p.toFixed(2));
     });
@@ -79,6 +79,6 @@ export function advanceMarket(stocks: Stock[], seed = Date.now()): Stock[] {
   return stocks.map(stock => {
     const delta = (random() - .495) * .0018 * Math.max(.65, stock.beta);
     const price = Math.max(.5, stock.price * (1 + delta));
-    return {...stock, price:Number(price.toFixed(2)), change:stock.change + delta*100, volume:stock.volume + Math.floor(random()*18000), history:[...stock.history.slice(-47),Number(price.toFixed(2))]};
+    return {...stock, price:Number(price.toFixed(2)), change:stock.change + delta*100, volume:stock.volume + Math.floor(random()*18000), history:[...stock.history.slice(-389),Number(price.toFixed(2))]};
   });
 }
