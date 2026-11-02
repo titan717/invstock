@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Bookmark, BriefcaseBusiness, Check, ChevronDown, ChevronRight, CircleHelp, Clock3, Crown, Flame, Home, Landmark, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Wallet, X, Zap } from "lucide-react";
 import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
-import { executeTrade, initialPortfolio, portfolioValue, type Portfolio } from "@/lib/simulator";
+import { executeTrade, INITIAL_DEPOSIT, initialPortfolio, portfolioValue, type Portfolio } from "@/lib/simulator";
 
 type Tab = "Home" | "Discovery" | "Options" | "News" | "Account";
 type Modal = "trade" | "news" | null;
