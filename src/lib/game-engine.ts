@@ -5,6 +5,15 @@ export type GameBuilding = { id: string; name: string; icon: string; cost: numbe
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
 export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark" };
 export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean };
+export type GameMission={id:string;title:string;description:string;metric:"trades"|"properties"|"growth";target:number;progress:number;reward:number;xpReward:number;claimed:boolean};
+export type ChallengeBot={name:string;returnPct:number;risk:number};
+export type WeeklyChallenge={week:number;joined:boolean;startValue:number;bots:ChallengeBot[];reward:number;claimed:boolean};
+export function createDefaultMissions():GameMission[]{return [
+  {id:"first-trade",title:"Make your first trade",description:"Complete one stock buy or sell.",metric:"trades",target:1,progress:0,reward:150,xpReward:50,claimed:false},
+  {id:"first-property",title:"Build your first asset",description:"Acquire a property in the property market.",metric:"properties",target:1,progress:0,reward:250,xpReward:80,claimed:false},
+  {id:"portfolio-growth",title:"Grow your portfolio",description:"Increase net worth by $250 from starting capital.",metric:"growth",target:250,progress:0,reward:200,xpReward:60,claimed:false}
+];}
+export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
   version: 2;
   cash: number;
@@ -55,7 +64,7 @@ const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:2,cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:570,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
+  return {version:2,xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:570,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -70,7 +79,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   }
   state.buildings=Array.isArray(source.buildings)?source.buildings.filter((b:unknown)=>object(b).name).map((b:unknown,i:number)=>{const x=object(b);return{id:String(x.id??"legacy-building-"+i),name:String(x.name),icon:String(x.icon??"🏢"),cost:number(x.cost),value:number(x.value,number(x.cost)),income:number(x.income),level:Math.max(1,number(x.level,1))};}):[];
   state.activity=Array.isArray(source.activity)?source.activity.slice(0,100):[];
-  state.trades=number(source.trades);state.realizedPnl=number(source.realizedPnl);
+  state.trades=number(source.trades);state.realizedPnl=number(source.realizedPnl);state.xp=number(source.xp);state.rank=String(source.rank??"Apprentice");state.missions=Array.isArray(source.missions)?source.missions:createDefaultMissions();state.weeklyChallenge=object(source.weeklyChallenge).bots?source.weeklyChallenge:createWeeklyChallenge(Math.ceil(number(source.marketSnapshot?.day,1)/7),number(source.start,10000));
   state.achievements=strings(source.achievements);
   state.watchlist=strings(source.watch).length?strings(source.watch):state.watchlist;
   state.settings={...defaultSettings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)};
