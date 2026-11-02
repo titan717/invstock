@@ -28,7 +28,9 @@ function gameFromPortfolio(portfolio:Portfolio,stocks:Stock[]):GameState {
  const state=createGameState();
  state.cash=portfolio.cash;state.holdings=Object.fromEntries(Object.entries(portfolio.holdings));state.realizedPnl=portfolio.realizedPnl;state.trades=portfolio.trades;
  state.market.stocks=Object.fromEntries(stocks.map(stock=>[stock.ticker,stock]));
- const historyLength=Math.max(1,Math.min(390,...Object.keys(portfolio.holdings).map(ticker=>stocks.find(stock=>stock.ticker===ticker)?.history.length??390)));\n state.history=Array.from({length:historyLength},(_,index)=>({v:portfolio.cash+Object.entries(portfolio.holdings).reduce((sum,[ticker,holding])=>{const stock=stocks.find(item=>item.ticker===ticker);return sum+(stock?.history[index]??stock?.price??0)*holding.quantity;},0),t:index+1}));\n state.dailyHistory=state.history.filter((_,index)=>index%Math.max(1,Math.floor(historyLength/78))===0).slice(-3650);\n state.best=Math.max(state.best,...state.history.map(point=>point.v));state.start=INITIAL_DEPOSIT;
+ const historyLength=Math.max(1,Math.min(390,...Object.keys(portfolio.holdings).map(ticker=>stocks.find(stock=>stock.ticker===ticker)?.history.length??390)));
+ state.history=Array.from({length:historyLength},(_,index)=>({v:portfolio.cash+Object.entries(portfolio.holdings).reduce((sum,[ticker,holding])=>{const stock=stocks.find(item=>item.ticker===ticker);return sum+(stock?.history[index]??stock?.price??0)*holding.quantity;},0),t:index+1}));
+ state.dailyHistory=state.history.filter((_,index)=>index%Math.max(1,Math.floor(historyLength/78))===0).slice(-3650);\n state.best=Math.max(state.best,...state.history.map(point=>point.v));state.start=INITIAL_DEPOSIT;
  return state;
 }
 const fmtCompact = (n:number) => n >= 1e12 ? `$${(n/1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : money(n);
