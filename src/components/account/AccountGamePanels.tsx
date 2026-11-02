@@ -1,0 +1,68 @@
+"use client";
+
+import { useState } from "react";
+import { ACHIEVEMENTS, BUILDING_CATALOG, calculateNetWorth, type GameState } from "@/lib/game-engine";
+import type { Stock } from "@/lib/market";
+
+type BankAction="deposit"|"withdraw"|"borrow"|"repay";
+type BuildingAction="buy"|"upgrade"|"sell";
+type Panel="Bank"|"Buildings"|"Achievements"|"Settings";
+type Props={
+  state:GameState;stocks:Stock[];
+  onBank:(action:BankAction,amount:number)=>void;
+  onBuilding:(action:BuildingAction,idOrName:string)=>void;
+  onSpeed:(speed:number)=>void;
+  onSetting:(key:"sound"|"haptics",value:boolean)=>void;
+  onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
+};
+const money=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value);
+
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
+  const [panel,setPanel]=useState<Panel>("Bank");
+  const [amount,setAmount]=useState("100");
+  const [saveText,setSaveText]=useState("");
+  const [confirmReset,setConfirmReset]=useState(false);
+  const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
+  return <section className="game-panels" id="account-game-panels">
+    <div className="game-panel-nav" aria-label="Simulator tools">
+      {(["Bank","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
+    </div>
+    {panel==="Bank"&&<div className="game-panel-content">
+      <div className="game-balance-grid"><div><small>Cash balance</small><b>{money(state.cash)}</b></div><div><small>Savings balance</small><b>{money(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{money(state.loan)}</b></div><div><small>Available credit</small><b>{money(availableCredit)}</b></div></div>
+      <label className="game-field-label" htmlFor="bank-amount">Amount in USD</label>
+      <input id="bank-amount" className="game-amount-input" type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/>
+      <div className="game-action-grid">
+        <button onClick={()=>onBank("deposit",Number(amount))}>Deposit</button>
+        <button onClick={()=>onBank("withdraw",Number(amount))}>Withdraw</button>
+        <button onClick={()=>onBank("borrow",Number(amount))}>Borrow</button>
+        <button onClick={()=>onBank("repay",Number(amount))}>Repay</button>
+      </div>
+      <p className="game-muted">Savings earns 3.5% simulated APY. Loans accrue 12% simulated APR with a 2% daily minimum payment. Missed payments incur a 1% penalty.</p>
+      <h3>Recent activity</h3>
+      <div className="game-activity">{state.activity.slice(0,12).map((item,index)=><div key={index}><span>{item.type==="deposit"?"Savings deposit":item.type==="withdraw"?"Savings withdrawal":item.type==="loan"?"Loan drawn":item.type==="repayment"?"Loan repayment":item.type==="dividend"?"Dividend":item.type==="buy"?"Stock purchase":item.type==="sell"?"Stock sale":item.type}</span><b>{money(item.amount??(item.qty??0)*(item.price??0))}</b></div>)}</div>
+    </div>}
+    {panel==="Buildings"&&<div className="game-panel-content">
+      <div className="game-balance-grid"><div><small>Property value</small><b>{money(state.buildings.reduce((sum,item)=>sum+item.value,0))}</b></div><div><small>Income per minute</small><b className="gain">{money(state.buildings.reduce((sum,item)=>sum+item.income,0))}</b></div></div>
+      <h3>Your properties</h3>
+      {state.buildings.length?state.buildings.map(item=><div className="game-property" key={item.id}><span className="game-property-icon">{item.icon}</span><div><b>{item.name}</b><small>Level {item.level} · {money(item.income)}/min · Value {money(item.value)}</small></div><button onClick={()=>onBuilding("upgrade",item.id)}>Upgrade {item.name}</button><button className="danger-outline" onClick={()=>onBuilding("sell",item.id)}>Sell</button></div>):<p className="game-muted">You have not acquired any properties yet.</p>}
+      <h3>Property market</h3>
+      {BUILDING_CATALOG.map(item=><div className="game-property" key={item.name}><span className="game-property-icon">{item.icon}</span><div><b>{item.name}</b><small>Produces {money(item.income)}/min · Owned {state.buildings.filter(x=>x.name===item.name).length}</small></div><b>{money(item.cost)}</b><button onClick={()=>onBuilding("buy",item.name)}>Buy {item.name}</button></div>)}
+    </div>}
+    {panel==="Achievements"&&<div className="game-panel-content">
+      <div className="game-balance-grid"><div><small>Achievements unlocked</small><b>{state.achievements.length}/{ACHIEVEMENTS.length}</b></div><div><small>Best net worth</small><b>{money(state.best)}</b></div><div><small>Market day</small><b>{state.market.day}</b></div><div><small>Completed trades</small><b>{state.trades}</b></div></div>
+      {ACHIEVEMENTS.map(item=>{const unlocked=state.achievements.includes(item.id);return <div className="game-achievement" key={item.id}><span>{unlocked?"🏆":"🔒"}</span><div><b>{item.id}</b><small>{item.description}</small></div><strong className={unlocked?"gain":""}>{unlocked?"Unlocked":"Locked"}</strong></div>;})}
+    </div>}
+    {panel==="Settings"&&<div className="game-panel-content">
+      <h3>Simulation speed</h3>
+      <div className="game-speed-options">{[0,1,2,5,60,390].map(speed=><button key={speed} className={state.settings.speed===speed?"selected":""} onClick={()=>onSpeed(speed)}>{speed===0?"Pause":speed+"×"}</button>)}</div>
+      <label className="game-setting-row"><span><b>Sound effects</b><small>Trade and market event sounds</small></span><input type="checkbox" checked={state.settings.sound} onChange={e=>onSetting("sound",e.target.checked)}/></label>
+      <label className="game-setting-row"><span><b>Haptic feedback</b><small>Subtle feedback on supported devices</small></span><input type="checkbox" checked={state.settings.haptics} onChange={e=>onSetting("haptics",e.target.checked)}/></label>
+      <h3>How to play</h3><p className="game-muted">Buy and sell simulated shares using the market price, spread and trading fee. Use the Bank to earn savings interest or borrow against your net worth. Properties generate income each simulated market minute. Market events and rumours can move individual stocks, sectors or the whole market. Hold positions for seven market days to earn Diamond Hands, and manage debt to avoid margin calls.</p><h3>Save data</h3>
+      <p className="game-muted">Export a local backup or import a previously exported InvStock save.</p>
+      <button className="game-primary-action" onClick={onExport}>Export save</button>
+      <textarea className="game-import-area" aria-label="Save data JSON" value={saveText} onChange={e=>setSaveText(e.target.value)} placeholder="Paste an InvStock save JSON here"/>
+      <button className="game-secondary-action" disabled={!saveText.trim()} onClick={()=>onImport(saveText)}>Import save</button>
+      {confirmReset?<div className="game-reset-confirm" role="alertdialog" aria-label="Confirm simulator reset"><b>Reset all simulator progress?</b><p>This permanently clears your portfolio, properties, achievements and settings on this device.</p><div><button className="game-reset-action" onClick={()=>{onReset();setConfirmReset(false);}}>Yes, reset everything</button><button className="game-secondary-action" onClick={()=>setConfirmReset(false)}>Cancel</button></div></div>:<button className="game-reset-action" onClick={()=>setConfirmReset(true)}>Reset simulator</button>}
+    </div>}
+  </section>;
+}
