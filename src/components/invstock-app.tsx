@@ -28,8 +28,7 @@ function gameFromPortfolio(portfolio:Portfolio,stocks:Stock[]):GameState {
  const state=createGameState();
  state.cash=portfolio.cash;state.holdings=Object.fromEntries(Object.entries(portfolio.holdings));state.realizedPnl=portfolio.realizedPnl;state.trades=portfolio.trades;
  state.market.stocks=Object.fromEntries(stocks.map(stock=>[stock.ticker,stock]));
- state.history=[{v:portfolioValue(portfolio,stocks),t:1}];state.dailyHistory=[{v:portfolioValue(portfolio,stocks),t:1}];
- state.best=Math.max(state.best,portfolioValue(portfolio,stocks));state.start=INITIAL_DEPOSIT;
+ const historyLength=Math.max(1,Math.min(390,...Object.keys(portfolio.holdings).map(ticker=>stocks.find(stock=>stock.ticker===ticker)?.history.length??390)));\n state.history=Array.from({length:historyLength},(_,index)=>({v:portfolio.cash+Object.entries(portfolio.holdings).reduce((sum,[ticker,holding])=>{const stock=stocks.find(item=>item.ticker===ticker);return sum+(stock?.history[index]??stock?.price??0)*holding.quantity;},0),t:index+1}));\n state.dailyHistory=state.history.filter((_,index)=>index%Math.max(1,Math.floor(historyLength/78))===0).slice(-3650);\n state.best=Math.max(state.best,...state.history.map(point=>point.v));state.start=INITIAL_DEPOSIT;
  return state;
 }
 const fmtCompact = (n:number) => n >= 1e12 ? `$${(n/1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : money(n);
@@ -58,7 +57,7 @@ export default function InvStockApp(){
  const [game,setGame]=useState<GameState>(()=>gameFromPortfolio(initialPortfolio,createMarket()));
  const stocksRef=useRef(stocks);
  const gameRef=useRef(game);
- const [portfolioHistory,setPortfolioHistory]=useState<{label:string;value:number}[]>(()=>[{label:"Start",value:portfolioValue(initialPortfolio,createMarket())}]);
+ const [portfolioHistory,setPortfolioHistory]=useState<{label:string;value:number}[]>(()=>game.history.map(point=>({label:"Day "+point.t,value:point.v})));
  const [selected,setSelected]=useState<Stock|null>(null);
  const [modal,setModal]=useState<Modal>(null);
  const [newsIndex,setNewsIndex]=useState(0);
@@ -174,8 +173,8 @@ const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:sto
  const cycleSpeed=()=>{const values=[0,1,2,5,60,390];const current=gameRef.current.settings.speed;changeSpeed(values[(values.indexOf(current)+1)%values.length]);};
  const changeSetting=(key:"sound"|"haptics",value:boolean)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,[key]:value}};gameRef.current=next;setGame(next);};
  const exportSave=()=>{const payload=JSON.stringify({...gameRef.current,market:{...gameRef.current.market,stocks:Object.fromEntries(stocksRef.current.map(stock=>[stock.ticker,stock]))}},null,2);const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="invstock-save.json";anchor.click();URL.revokeObjectURL(url);};
- const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setSaved(imported.watchlist);setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
- const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);setSaved(["NVDA","MSFT"]);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
+ const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setSaved(imported.watchlist);setPortfolioHistory(imported.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
+ const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);setPortfolioHistory(next.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));setSaved(["NVDA","MSFT"]);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
  const addDigit=(digit:string)=>setAmount(v=>digit==="back"?v.slice(0,-1):digit==="."?(v.includes(".")?v:v+"."):(v==="0"?digit:v+digit));
  const toggleSaved=(ticker:string)=>setSaved(v=>v.includes(ticker)?v.filter(t=>t!==ticker):[...v,ticker]);
  const gotoStock=(ticker:string)=>{const stock=stockByTicker(ticker);if(stock)openStock(stock);};
