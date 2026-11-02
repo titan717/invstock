@@ -314,3 +314,4 @@
 .edit-profile{align-self:flex-start;margin-top:5px;border:1px solid #2B3139;border-radius:8px;background:#111519;padding:6px 9px;color:#848E9C;font-size:9px;font-weight:750}
 .edit-profile:hover{border-color:#0ECB8177;color:#0ECB81}
 .market-live{white-space:nowrap}
+.quote-muted{color:#848E9C!important;text-shadow:none!important}
