@@ -35,7 +35,7 @@ function gameFromPortfolio(portfolio:Portfolio,stocks:Stock[]):GameState {
  return state;
 }
 const fmtCompact = (n:number) => n >= 1e12 ? `$${(n/1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : money(n);
-const newsItems = [
+const newsItems: {source:string;time:string;ticker:string;tone:string;title:string;body:string;tickers?:string[]}[] = [
   {source:"Trading Post",time:"7h 6m ago",ticker:"NVDA",tone:"up",title:"Nvidia expands its next-generation AI platform as demand accelerates",body:"The simulated company update points to stronger demand across data-centre customers. Chipmakers are leading today's sector rotation."},
   {source:"Finance Daily",time:"Jan 6",ticker:"XOM",tone:"up",title:"Energy names rally as integrated producers raise shareholder returns",body:"A broad energy-sector move is lifting producers and service companies in the simulator's latest market session."},
   {source:"Market Wire",time:"2h ago",ticker:"MRNA",tone:"down",title:"Moderna slips as investors reassess the near-term pipeline outlook",body:"The simulated outlook update weighs on healthcare sentiment. Volatility is elevated compared with the wider market."},
