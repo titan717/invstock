@@ -7,7 +7,7 @@ describe("full simulator game engine", () => {
 
   it("migrates the original Ticker save without losing game progress", () => {
     const legacy = {
-      cash: 1200, holdings: { MSFT: 2.5, GOOGL: 3 }, costs: { MSFT: 900, GOOGL: 420 },
+      profileName:"Sam",cash: 1200, holdings: { MSFT: 2.5, GOOGL: 3 }, costs: { MSFT: 900, GOOGL: 420 },
       savings: 500, loan: 200, buildings: [{name:"Coffee Cafe",icon:"☕",cost:1800,value:2200,income:1.35,level:2}],
       achievements: ["First Profit", "Landlord"], watch: ["MSFT", "NVDA"],
       settings: {speed:2,sound:false,haptics:true,theme:"dark"}, best:15000,start:10000,
@@ -18,6 +18,7 @@ describe("full simulator game engine", () => {
     };
     const state = migrateLegacySave(legacy, market);
     expect(state.version).toBeGreaterThan(0);
+    expect(state.profileName).toBe("Sam");
     expect(state.holdings.MSFT.quantity).toBe(2.5);
     expect(state.holdings.MSFT.averageCost).toBeCloseTo(360);
     expect(state.savings).toBe(500);
