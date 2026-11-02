@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createGameState } from "@/lib/game-engine";
 import { createMarket } from "@/lib/market";
-import { applyMarketEvent, evaluateAchievements, resolvePendingRumours } from "@/lib/game-runtime";
+import { applyMarketEvent, evaluateAchievements, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 
 describe("simulated market events and progression", () => {
   it("applies macro events across the market and sector events only within their sector", () => {
@@ -43,4 +43,17 @@ describe("simulated market events and progression", () => {
     expect(state.achievements).toContain("Diamond Hands");
     expect(evaluateAchievements(state,market)).toHaveLength(0);
   });
+  it("rolls an unclaimed weekly challenge forward after its grace week", () => {
+    const market = createMarket();
+    const state = createGameState();
+    state.market.day = 15;
+    state.weeklyChallenge = { ...state.weeklyChallenge, week: 1, joined: true, claimed: false, startValue: 10000 };
+    const startingCash = state.cash;
+    updateProgression(state, market, 123);
+    expect(state.weeklyChallenge.week).toBe(3);
+    expect(state.weeklyChallenge.joined).toBe(false);
+    expect(state.cash).toBeGreaterThan(startingCash);
+    expect(state.activity.some(item => item.type === "weekly-reward")).toBe(true);
+  });
+
 });
