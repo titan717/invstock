@@ -1,7 +1,7 @@
 export type Stock = {
   ticker: string; name: string; sector: string; price: number; change: number;
   volume: number; marketCap: number; pe: number; dividend: number; beta: number;
-  color: string; history: number[];
+  color: string; history: number[]; volatility?:number; drift?:number; basePrice?:number;
 };
 
 type Definition = [string,string,string,number,number,number,number,number,number,number,string];
@@ -69,16 +69,24 @@ export function createMarket(seed = 731991): Stock[] {
       return Number(p.toFixed(2));
     });
     const change = (p / base - 1) * 100;
-    return { ticker,name,sector,price:Number(p.toFixed(2)),change,volume:Math.floor(2e6 + random()*24e6),marketCap:cap,pe,dividend,beta,color,history };
+    return { ticker,name,sector,price:Number(p.toFixed(2)),change,volume:Math.floor(2e6 + random()*24e6),marketCap:cap,pe,dividend,beta,color,history,volatility:vol,drift,basePrice:base };
   });
 }
 
-export function advanceMarket(stocks: Stock[], seed = Date.now()): Stock[] {
+export function advanceMarket(stocks: Stock[], seed = Date.now(), regime:"Bull"|"Bear"|"Sideways"|"Panic"="Sideways"): Stock[] {
   let state = seed >>> 0;
   const random = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 4294967296; };
+  const regimeDrift={Bull:.00016,Bear:-.00018,Sideways:0,Panic:-.0008}[regime];
+  const regimeVol={Bull:.85,Bear:1.25,Sideways:1,Panic:2.5}[regime];
+  const sectorFactors=new Map<string,number>();
+  for(const stock of stocks)if(!sectorFactors.has(stock.sector))sectorFactors.set(stock.sector,(random()-.5)*.0007);
   return stocks.map(stock => {
-    const delta = (random() - .495) * .0018 * Math.max(.65, stock.beta);
-    const price = Math.max(.5, stock.price * (1 + delta));
-    return {...stock, price:Number(price.toFixed(2)), change:stock.change + delta*100, volume:stock.volume + Math.floor(random()*18000), history:[...stock.history.slice(-389),Number(price.toFixed(2))]};
+    const beta=Math.max(.65,stock.beta),volatility=stock.volatility??.02,base=stock.basePrice??stock.price;
+    const sectorShock=(sectorFactors.get(stock.sector)??0)*.7;
+    const reversion=Math.log(Math.max(.5,base)/Math.max(.5,stock.price))*.00012/390;
+    const shock=(random()-.5)*volatility/Math.sqrt(390)*regimeVol*beta;
+    const delta=stock.drift!/390+regimeDrift*beta/390+sectorShock+shock+reversion;
+    const price=Math.max(.5,Math.min(base*30,stock.price*(1+delta)));
+    return {...stock,price:Number(price.toFixed(2)),change:stock.change+delta*100,volume:stock.volume+Math.floor(random()*90000+5000),marketCap:stock.marketCap*(price/Math.max(.5,stock.price)),history:[...stock.history.slice(-389),Number(price.toFixed(2))]};
   });
 }
