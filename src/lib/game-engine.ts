@@ -16,6 +16,7 @@ export function createDefaultMissions():GameMission[]{return [
 export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
   version: 2;
+  profileName: string;
   cash: number;
   savings: number;
   loan: number;
@@ -110,7 +111,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     if(quantity>0)holdings[ticker]={quantity,averageCost:number(holding.averageCost)};
   }
   return {
-    ...defaults,...source,version:2,
+    ...defaults,...source,version:2,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
