@@ -217,3 +217,20 @@
   .news-modal h2{@apply text-xl}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+
+/* Company identity and semantic chart glow */
+.company-logo{display:inline-grid;flex:none;place-items:center;overflow:hidden;border:1px solid #2b3139;border-radius:13px;background:#111519;color:#fff;box-shadow:0 0 0 1px #ffffff05,inset 0 0 16px #ffffff08}
+.company-logo img{display:block;width:68%;height:68%;object-fit:contain}
+.company-logo-fallback{display:grid;width:100%;height:100%;place-items:center;font-size:10px;font-weight:900;letter-spacing:-.04em}
+.gain,.glow-positive{color:#0ECB81!important;text-shadow:0 0 7px #0ECB8166,0 0 18px #0ECB8133}
+.loss,.glow-negative{color:#F6465D!important;text-shadow:0 0 7px #F6465D66,0 0 18px #F6465D33}
+.chart-positive .recharts-area-area{filter:drop-shadow(0 0 5px #0ECB8180)}
+.chart-positive .recharts-area-curve,.chart-positive .recharts-line-curve{filter:drop-shadow(0 0 5px #0ECB81aa)}
+.chart-negative .recharts-area-area{filter:drop-shadow(0 0 5px #F6465D80)}
+.chart-negative .recharts-area-curve,.chart-negative .recharts-line-curve{filter:drop-shadow(0 0 5px #F6465Daa)}
+.price-glow-positive{animation:price-glow-up .65s ease-out}
+.price-glow-negative{animation:price-glow-down .65s ease-out}
+@keyframes price-glow-up{0%{text-shadow:0 0 18px #0ECB81;filter:brightness(1.5)}100%{text-shadow:0 0 7px #0ECB8166;filter:none}}
+@keyframes price-glow-down{0%{text-shadow:0 0 18px #F6465D;filter:brightness(1.5)}100%{text-shadow:0 0 7px #F6465D66;filter:none}}
+@media(prefers-reduced-motion:reduce){.price-glow-positive,.price-glow-negative{animation:none}}
