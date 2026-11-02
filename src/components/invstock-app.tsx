@@ -89,7 +89,7 @@ export default function InvStockApp(){
   if(legacy&&!legacyMigrated){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);localStorage.setItem("invstock-legacy-migrated","true");}
   else if(savedGame){const parsed=JSON.parse(savedGame);restored=hydrateGameState(parsed,stocksRef.current);}
   else if(current){const data=JSON.parse(current);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);if(data.portfolio)restored=gameFromPortfolio(data.portfolio,stocksRef.current);}
-  if(restored){const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setPortfolioHistory(restored.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));setProfileInput(restored.profileName);if(!restored.profileName)setModal("profile");}else setModal("profile");
+  if(restored){const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setProfileInput(restored.profileName);if(!restored.profileName)setModal("profile");}else setModal("profile");
  }catch{setToast("A saved game could not be fully restored. Your current session remains available.");}
  setReady(true);},[]);
  useEffect(()=>{if(!ready)return;try{
@@ -102,11 +102,12 @@ export default function InvStockApp(){
   let nextGame=structuredClone(gameRef.current);
   const speed=nextGame.settings.speed;
   if(speed<=0)return;
-  const marketSeed=nextGame.prngSeed>>>0;
-  let nextStocks=advanceMarket(stocksRef.current,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic");
-  nextGame.prngSeed=(marketSeed*1664525+1013904223)>>>0;
-  if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
+  let nextStocks=stocksRef.current;
   for(let step=0;step<speed;step++){
+    const marketSeed=nextGame.prngSeed>>>0;
+    nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic");
+    nextGame.prngSeed=(marketSeed*1664525+1013904223)>>>0;
+    if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
     const regime=nextGame.market.regime;
     const incomeFactor=regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1;
     nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
@@ -133,17 +134,17 @@ export default function InvStockApp(){
   }
   const absoluteTick=nextGame.market.day*390+(nextGame.market.minute-570);
   resolvePendingRumours(nextGame,nextStocks,absoluteTick);
-  evaluateAchievements(nextGame,nextStocks);
+  evaluateAchievements(nextGame,nextStocks);updateProgression(nextGame,nextStocks,nextGame.prngSeed);
   nextGame.market.stocks=Object.fromEntries(nextStocks.map(stock=>[stock.ticker,stock]));
   stocksRef.current=nextStocks;gameRef.current=nextGame;
   setStocks(nextStocks);setGame(nextGame);setPortfolio(portfolioFromGame(nextGame));
-  setPortfolioHistory(history=>[...history.slice(-719),{label:"Day "+nextGame.market.day+" · "+String(Math.floor(nextGame.market.minute/60)).padStart(2,"0")+":"+String(nextGame.market.minute%60).padStart(2,"0"),value:calculateNetWorth(nextGame,nextStocks)}]);
+
  },4500);return()=>window.clearInterval(id);},[]);
  useEffect(()=>{if(!selected)return;const latest=stocks.find(stock=>stock.ticker===selected.ticker);if(latest&&latest!==selected)setSelected(latest);},[stocks,selected]);
  useEffect(()=>{if(!toast)return;const id=window.setTimeout(()=>setToast(""),2600);return()=>window.clearTimeout(id);},[toast]);
 
  const totalValue=useMemo(()=>calculateNetWorth(game,stocks),[game,stocks]);
- const chartData=useMemo(()=>{const count:Record<string,number>={"1D":48,"1W":96,"1M":180,"3M":360,"1Y":600,"ALL":720};const source=portfolioHistory.length?portfolioHistory:game.history.map(point=>({label:"Day "+point.t,value:point.v}));return source.slice(-count[timeframe]).map(point=>({label:point.label,value:point.value}));},[portfolioHistory,game.history,timeframe]);
+ const chartData=useMemo(()=>{const intraday=timeframe==="1D"?game.history.slice(-390):timeframe==="1W"?game.history.slice(-1950):null;const daily=timeframe==="1M"?game.dailyHistory.slice(-30):timeframe==="3M"?game.dailyHistory.slice(-90):timeframe==="1Y"?game.dailyHistory.slice(-252):timeframe==="ALL"?game.dailyHistory:[];return (intraday??daily).map(point=>({label:"Day "+point.t,value:point.v}));},[game.history,game.dailyHistory,timeframe]);
  const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;
  const optionExpiryDays=Number(optionExpiry.match(/(\d+)d/)?.[1]??4);
  const optionRows=useMemo(()=>generateOptionChain(stockByTicker("NVDA"),optionExpiryDays,optionSide==="Calls"?"call":"put"),[stocks,optionExpiryDays,optionSide]);
@@ -178,8 +179,8 @@ const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:sto
  const cycleSpeed=()=>{const values=[0,1,2,5,60,390];const current=gameRef.current.settings.speed;changeSpeed(values[(values.indexOf(current)+1)%values.length]);};
  const changeSetting=(key:"sound"|"haptics",value:boolean)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,[key]:value}};gameRef.current=next;setGame(next);};
  const exportSave=()=>{const payload=JSON.stringify({...gameRef.current,market:{...gameRef.current.market,stocks:Object.fromEntries(stocksRef.current.map(stock=>[stock.ticker,stock]))}},null,2);const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="invstock-save.json";anchor.click();URL.revokeObjectURL(url);};
- const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);const restoredStocks=restoreMarketSnapshot(imported,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);imported.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));localStorage.setItem("invstock-legacy-migrated","true");gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setSaved(imported.watchlist);setProfileInput(imported.profileName);setPortfolioHistory(imported.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
- const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);next.profileName=gameRef.current.profileName;gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);setPortfolioHistory(next.history.map(point=>({label:"Day "+point.t,value:point.v})).slice(-720));setSaved(["NVDA","MSFT"]);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
+ const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);const restoredStocks=restoreMarketSnapshot(imported,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);imported.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));localStorage.setItem("invstock-legacy-migrated","true");gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setSaved(imported.watchlist);setProfileInput(imported.profileName);setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
+ const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);next.profileName=gameRef.current.profileName;gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);setSaved(["NVDA","MSFT"]);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
  const addDigit=(digit:string)=>setAmount(v=>digit==="back"?v.slice(0,-1):digit==="."?(v.includes(".")?v:v+"."):(v==="0"?digit:v+digit));
  const toggleSaved=(ticker:string)=>{const nextSaved=saved.includes(ticker)?saved.filter(t=>t!==ticker):[...saved,ticker];setSaved(nextSaved);const nextGame={...gameRef.current,watchlist:nextSaved};gameRef.current=nextGame;setGame(nextGame);};
  const gotoStock=(ticker:string)=>{const stock=stockByTicker(ticker);if(stock)openStock(stock);};
