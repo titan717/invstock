@@ -17,6 +17,10 @@ export function createWeeklyChallenge(week:number,startValue:number):WeeklyChall
 export type GameState = {
   version: 2;
   profileName: string;
+  xp: number;
+  rank: string;
+  missions: GameMission[];
+  weeklyChallenge: WeeklyChallenge;
   cash: number;
   savings: number;
   loan: number;
