@@ -7,7 +7,7 @@ import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, initialPortfolio, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
-import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
 
@@ -111,9 +111,9 @@ export default function InvStockApp(){
     const incomeFactor=regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1;
     nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
     nextGame.market.minute+=1;
-    if(nextGame.market.minute>=960){
+    if(nextGame.market.minute>=MARKET_OPEN_MINUTE+MARKET_SESSION_MINUTES){
       const previousDay=nextGame.market.day;
-      nextGame.market.minute=570;
+      nextGame.market.minute=MARKET_OPEN_MINUTE;
       nextGame=advanceGameDay(nextGame,nextStocks).state;
       const worth=calculateNetWorth(nextGame,nextStocks);
       nextGame.dailyHistory=[...nextGame.dailyHistory.slice(-3649),{v:worth,t:previousDay+1}];
@@ -131,7 +131,7 @@ export default function InvStockApp(){
     nextGame.prngSeed=(seed*1664525+1013904223)>>>0;
     nextGame.eventsNextAt=Date.now()+20000+(nextGame.prngSeed%40001);
   }
-  const absoluteTick=nextGame.market.day*390+(nextGame.market.minute-570);
+  const absoluteTick=nextGame.market.day*MARKET_SESSION_MINUTES+(nextGame.market.minute-MARKET_OPEN_MINUTE);
   resolvePendingRumours(nextGame,nextStocks,absoluteTick);
   evaluateAchievements(nextGame,nextStocks);updateProgression(nextGame,nextStocks,nextGame.prngSeed);
   nextGame.market.stocks=Object.fromEntries(nextStocks.map(stock=>[stock.ticker,stock]));
