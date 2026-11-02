@@ -21,6 +21,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
   const [panel,setPanel]=useState<Panel>("Bank");
   const [amount,setAmount]=useState("100");
   const [saveText,setSaveText]=useState("");
+  const [confirmReset,setConfirmReset]=useState(false);
   const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
@@ -61,7 +62,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
       <button className="game-primary-action" onClick={onExport}>Export save</button>
       <textarea className="game-import-area" aria-label="Save data JSON" value={saveText} onChange={e=>setSaveText(e.target.value)} placeholder="Paste an InvStock save JSON here"/>
       <button className="game-secondary-action" disabled={!saveText.trim()} onClick={()=>onImport(saveText)}>Import save</button>
-      <button className="game-reset-action" onClick={()=>{if(window.confirm("Reset all InvStock progress, portfolio, properties and settings? This cannot be undone."))onReset();}}>Reset simulator</button>
+      {confirmReset?<div className="game-reset-confirm" role="alertdialog" aria-label="Confirm simulator reset"><b>Reset all simulator progress?</b><p>This permanently clears your portfolio, properties, achievements and settings on this device.</p><div><button className="game-reset-action" onClick={()=>{onReset();setConfirmReset(false);}}>Yes, reset everything</button><button className="game-secondary-action" onClick={()=>setConfirmReset(false)}>Cancel</button></div></div>:<button className="game-reset-action" onClick={()=>setConfirmReset(true)}>Reset simulator</button>}
     </div>}
   </section>;
 }
