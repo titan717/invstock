@@ -79,7 +79,9 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   for(const [ticker,value] of Object.entries(quantities)){
     const quantity=number(value);
     if(quantity<=0) continue;
-    const holding={quantity,averageCost:number(costs[ticker])/quantity};
+    const totalCost=number(costs[ticker]);
+    const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;
+    const holding={quantity,averageCost:totalCost>0?totalCost/quantity:marketPrice};
     (known.has(ticker)?state.holdings:state.orphanedPositions)[ticker]=holding;
   }
   state.buildings=Array.isArray(source.buildings)?source.buildings.filter((b:unknown)=>object(b).name).map((b:unknown,i:number)=>{const x=object(b);return{id:String(x.id??"legacy-building-"+i),name:String(x.name),icon:String(x.icon??"🏢"),cost:number(x.cost),value:number(x.value,number(x.cost)),income:number(x.income),level:Math.max(1,number(x.level,1))};}):[];
@@ -112,7 +114,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
   for(const [ticker,value] of Object.entries(object(source.holdings))){
     const holding=object(value);
     const quantity=number(holding.quantity);
-    if(quantity>0)holdings[ticker]={quantity,averageCost:number(holding.averageCost)};
+    if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
   return {
     ...defaults,...source,version:2,profileName:String(source.profileName??defaults.profileName),
