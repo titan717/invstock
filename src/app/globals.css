@@ -303,3 +303,9 @@
 .profile-modal h2{margin:8px 0;text-align:center;font-size:25px;font-weight:850;letter-spacing:-.7px}
 .profile-modal>.game-muted{text-align:center;margin:0 0 22px}
 .profile-modal .review-button{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:16px}
+
+.watchlist-item{display:flex;align-items:center;gap:4px;border-bottom:1px solid #ffffff0b;padding-right:10px}
+.watchlist-item:last-child{border-bottom:0}
+.watchlist-item>.stock-row{flex:1;border-bottom:0}
+.watchlist-item>button{display:grid;width:30px;height:30px;flex:none;place-items:center;border:1px solid #2B3139;border-radius:9px;background:#111519;color:#848E9C}
+.watchlist-item>button:hover{border-color:#F6465D66;color:#F6465D}
