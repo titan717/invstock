@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createGameState, migrateLegacySave, calculateNetWorth, bankAction, buildingAction, advanceGameDay } from "@/lib/game-engine";
+import { createGameState, migrateLegacySave, calculateNetWorth, bankAction, buildingAction, advanceGameDay, restoreMarketSnapshot } from "@/lib/game-engine";
 import { createMarket } from "@/lib/market";
 
 describe("full simulator game engine", () => {
