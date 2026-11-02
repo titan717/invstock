@@ -234,3 +234,46 @@
 @keyframes price-glow-up{0%{text-shadow:0 0 18px #0ECB81;filter:brightness(1.5)}100%{text-shadow:0 0 7px #0ECB8166;filter:none}}
 @keyframes price-glow-down{0%{text-shadow:0 0 18px #F6465D;filter:brightness(1.5)}100%{text-shadow:0 0 7px #F6465D66;filter:none}}
 @media(prefers-reduced-motion:reduce){.price-glow-positive,.price-glow-negative{animation:none}}
+
+
+.game-panels{margin-top:20px}
+.game-panel-nav{display:flex;gap:7px;overflow-x:auto;padding:3px 0 12px;scrollbar-width:none}
+.game-panel-nav::-webkit-scrollbar{display:none}
+.game-panel-nav button,.game-speed-options button{flex:none;border:1px solid #2B3139;border-radius:999px;background:#111519;padding:9px 14px;color:#848E9C;font-size:11px;font-weight:750}
+.game-panel-nav button.selected,.game-speed-options button.selected{border-color:#0ECB8177;background:#0ECB8118;color:#0ECB81;box-shadow:0 0 15px #0ECB8122}
+.game-panel-content{border:1px solid #2B3139;border-radius:20px;background:#15191e;padding:17px}
+.game-panel-content h3{margin:22px 0 11px;font-size:14px;font-weight:800}
+.game-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.game-balance-grid>div{display:flex;min-width:0;flex-direction:column;gap:6px;border:1px solid #2B3139;border-radius:13px;background:#101419;padding:13px}
+.game-balance-grid small,.game-property small,.game-achievement small,.game-setting-row small{color:#848E9C;font-size:10px}
+.game-balance-grid b{font-size:17px;font-weight:800}
+.game-field-label{display:block;margin:17px 0 7px;color:#848E9C;font-size:11px}
+.game-amount-input{width:100%;height:44px;border:1px solid #2B3139;border-radius:11px;background:#0B0E11;padding:0 12px;color:white}
+.game-action-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.game-action-grid button,.game-property button{border:1px solid #0ECB8144;border-radius:10px;background:#0ECB8116;padding:10px;color:#0ECB81;font-size:11px;font-weight:800}
+.game-action-grid button:nth-child(2),.game-action-grid button:nth-child(4){border-color:#F6465D44;background:#F6465D12;color:#F6465D}
+.game-muted{color:#848E9C;font-size:11px;line-height:1.6}
+.game-activity>div,.game-achievement,.game-setting-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #2B3139;padding:12px 2px;font-size:11px}
+.game-activity>div:last-child{border-bottom:0}
+.game-activity b{font-variant-numeric:tabular-nums}
+.game-property{display:grid;grid-template-columns:38px minmax(0,1fr) auto;align-items:center;gap:9px;border-bottom:1px solid #2B3139;padding:12px 0}
+.game-property-icon{display:grid;width:36px;height:36px;place-items:center;border-radius:11px;background:#ffffff0b;font-size:18px}
+.game-property>div{display:flex;min-width:0;flex-direction:column;gap:4px}
+.game-property>div b{font-size:11px}
+.game-property>div small{line-height:1.4}
+.game-property>button{grid-column:3;white-space:nowrap;padding:8px 10px}
+.game-property>.danger-outline{border-color:#F6465D44;background:#F6465D12;color:#F6465D}
+.game-achievement>span{font-size:19px}
+.game-achievement>div{display:flex;min-width:0;flex:1;flex-direction:column;gap:4px}
+.game-achievement>strong{font-size:10px;color:#848E9C}
+.game-speed-options{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 20px}
+.game-setting-row{cursor:pointer}
+.game-setting-row span{display:flex;flex-direction:column;gap:4px}
+.game-setting-row input{accent-color:#0ECB81;width:17px;height:17px}
+.game-primary-action,.game-secondary-action,.game-reset-action{width:100%;margin-top:10px;border-radius:11px;padding:12px;font-size:11px;font-weight:850}
+.game-primary-action{background:#0ECB81;color:#06110c}
+.game-secondary-action{border:1px solid #2B3139;background:#20262d}
+.game-secondary-action:disabled{opacity:.4}
+.game-reset-action{border:1px solid #F6465D55;background:#F6465D12;color:#F6465D}
+.game-import-area{display:block;width:100%;min-height:90px;margin-top:12px;border:1px solid #2B3139;border-radius:11px;background:#0B0E11;padding:10px;color:white;font-size:10px}
+@media(max-width:520px){.game-panel-content{padding:13px}.game-property{grid-template-columns:34px minmax(0,1fr) auto}.game-property button{font-size:10px}.game-balance-grid b{font-size:15px}}
