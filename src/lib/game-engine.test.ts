@@ -88,4 +88,14 @@ describe("full simulator game engine", () => {
     const again = advanceGameDay(result.state, result.market);
     expect(again.state.savings).toBeCloseTo(result.state.savings);
   });
+  it("uses the current market price when a legacy save has no usable cost basis", () => {
+    const state = migrateLegacySave({ cash: 1000, holdings: { MSFT: 2 }, costs: {} }, market);
+    expect(state.holdings.MSFT.averageCost).toBe(market.find(stock => stock.ticker === "MSFT")!.price);
+  });
+
+  it("repairs missing cost basis when hydrating a version-two save", () => {
+    const state = hydrateGameState({ version: 2, holdings: { MSFT: { quantity: 2 } } }, market);
+    expect(state.holdings.MSFT.averageCost).toBe(market.find(stock => stock.ticker === "MSFT")!.price);
+  });
+
 });
