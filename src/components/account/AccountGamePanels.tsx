@@ -53,7 +53,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
     </div>}
     {panel==="Settings"&&<div className="game-panel-content">
       <h3>Simulation speed</h3>
-      <div className="game-speed-options">{[0,1,2,4].map(speed=><button key={speed} className={state.settings.speed===speed?"selected":""} onClick={()=>onSpeed(speed)}>{speed===0?"Pause":speed+"×"}</button>)}</div>
+      <div className="game-speed-options">{[0,1,2,5,60,390].map(speed=><button key={speed} className={state.settings.speed===speed?"selected":""} onClick={()=>onSpeed(speed)}>{speed===0?"Pause":speed+"×"}</button>)}</div>
       <label className="game-setting-row"><span><b>Sound effects</b><small>Trade and market event sounds</small></span><input type="checkbox" checked={state.settings.sound} onChange={e=>onSetting("sound",e.target.checked)}/></label>
       <label className="game-setting-row"><span><b>Haptic feedback</b><small>Subtle feedback on supported devices</small></span><input type="checkbox" checked={state.settings.haptics} onChange={e=>onSetting("haptics",e.target.checked)}/></label>
       <h3>Save data</h3>
