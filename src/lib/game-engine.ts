@@ -98,6 +98,36 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   return state;
 }
 
+export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
+  const source=object(raw);
+  if(source.version!==2)return migrateLegacySave(raw,stocks);
+  const defaults=createGameState();
+  const market=object(source.market),challenge=object(source.weeklyChallenge);
+  const holdings:Record<string,GameHolding>={};
+  for(const [ticker,value] of Object.entries(object(source.holdings))){
+    const holding=object(value);
+    const quantity=number(holding.quantity);
+    if(quantity>0)holdings[ticker]={quantity,averageCost:number(holding.averageCost)};
+  }
+  return {
+    ...defaults,...source,version:2,
+    xp:number(source.xp),rank:String(source.rank??defaults.rank),
+    missions:Array.isArray(source.missions)?source.missions:defaults.missions,
+    weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
+    cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
+    holdings,buildings:Array.isArray(source.buildings)?source.buildings:[],
+    activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
+    achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
+    settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)},
+    history:Array.isArray(source.history)?source.history.slice(-1950):[],
+    dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
+    holdSince:object(source.holdSince) as Record<string,number>,
+    market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,570),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
+    news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
+    prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay)
+  };
+}
+
 export function restoreMarketSnapshot(state:GameState, stocks:Stock[]):Stock[] {
   const saved=state.market.stocks;
   return stocks.map(base=>{
