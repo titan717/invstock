@@ -2,7 +2,7 @@ name: InvStock CI
 
 on:
   push:
-    branches: ["feat/invstock-nextjs-rebuild"]
+    branches: ["main", "feat/invstock-nextjs-rebuild"]
   pull_request:
     branches: ["main"]
     paths:
