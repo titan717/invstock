@@ -321,3 +321,50 @@
 .game-reset-confirm>div{display:flex;flex-wrap:wrap;gap:8px}
 .game-reset-confirm button{min-height:36px;border-radius:9px;padding:8px 11px;font-size:10px;font-weight:800}
 .game-reset-confirm .game-reset-action{background:#F6465D;color:#fff}
+
+
+/* Responsive polish: compact header, adaptive navigation and PWA feedback. */
+.brand-lockup { border:0; background:transparent; padding:0; text-align:left; }
+.topbar { min-height:44px; }
+.topbar-actions { gap:8px; }
+.topbar-actions .icon-button { flex:none; }
+.pwa-status {
+  position:fixed; right:14px; bottom:88px; z-index:70;
+  display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px;
+  max-width:min(92vw,420px); border:1px solid #2B3139; border-radius:14px;
+  background:#171D20; padding:9px 11px; color:#c8d0d9; font-size:11px;
+  box-shadow:0 12px 36px #0009;
+}
+.pwa-status button {
+  min-height:34px; border:1px solid #0ECB8155; border-radius:9px;
+  background:#0ECB8118; padding:7px 10px; color:#0ECB81; font-size:11px; font-weight:800;
+}
+.offline-page { display:grid; min-height:100svh; place-items:center; padding:24px; background:#0B0E11; }
+.offline-card { width:100%; max-width:440px; border:1px solid #2B3139; border-radius:24px; background:#1A1D21; padding:28px; }
+.offline-mark { display:grid; width:48px; height:48px; place-items:center; border-radius:15px; background:#0ECB8118; color:#0ECB81; font-size:28px; }
+.offline-card h1 { margin:14px 0 8px; font-size:clamp(24px,6vw,34px); letter-spacing:-.04em; }
+.offline-card p:not(.eyebrow) { color:#848E9C; font-size:13px; line-height:1.7; }
+.offline-card a { display:inline-flex; margin-top:12px; border-radius:11px; background:#0ECB81; padding:12px 17px; color:#07120d; font-size:12px; font-weight:800; }
+@media (min-width:600px) and (max-width:899px) {
+  .app-shell { max-width:900px; padding-left:24px; padding-right:24px; }
+  .home-view { max-width:850px; }
+}
+@media (min-width:900px) {
+  .app-shell { max-width:1280px; margin-left:104px; margin-right:24px; padding-left:28px; padding-right:28px; }
+  .home-view { max-width:960px; }
+  .bottom-nav {
+    left:18px; top:50%; bottom:auto; width:68px; max-width:68px; height:auto;
+    transform:translateY(-50%); grid-template-columns:1fr; grid-template-rows:repeat(5,60px);
+    gap:2px; border:1px solid #2B3139; border-radius:19px; padding:8px;
+  }
+  .nav-item { gap:5px; font-size:9px; }
+  .pwa-status { bottom:18px; }
+}
+@media (max-width:620px) {
+  .topbar { margin-bottom:20px; }
+  .brand-lockup { gap:8px; font-size:17px; }
+  .topbar-actions { gap:6px; }
+  .topbar-actions .icon-button { width:36px; height:36px; }
+  .speed-chip { padding:7px 9px; font-size:10px; }
+  .pwa-status { right:8px; bottom:82px; left:8px; max-width:none; justify-content:space-between; }
+}
