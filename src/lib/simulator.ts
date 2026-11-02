@@ -4,12 +4,12 @@ export type Holding = { quantity: number; averageCost: number };
 export type Portfolio = { cash: number; holdings: Record<string,Holding>; realizedPnl: number; trades: number };
 export type TradeResult = { ok: true; portfolio: Portfolio; quantity: number; executionPrice: number; fee: number } | { ok: false; reason: string };
 
-export const initialPortfolio: Portfolio = {
+export const INITIAL_DEPOSIT = 10100;\n\nexport const initialPortfolio: Portfolio = {
   cash: 265.5,
   holdings: {
-    MSFT: {quantity: 5, averageCost: 405},
-    NVDA: {quantity: 12, averageCost: 162},
-    AAPL: {quantity: 8, averageCost: 232}
+    MSFT: {quantity: 8.061758, averageCost: 405},
+    NVDA: {quantity: 22, averageCost: 182},
+    AAPL: {quantity: 10, averageCost: 245}
   },
   realizedPnl: 0,
   trades: 0
