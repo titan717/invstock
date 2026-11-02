@@ -368,3 +368,13 @@
   .speed-chip { padding:7px 9px; font-size:10px; }
   .pwa-status { right:8px; bottom:82px; left:8px; max-width:none; justify-content:space-between; }
 }
+
+
+.home-extras { margin:18px 0 4px; border:1px solid #2B3139; border-radius:15px; background:#111519; overflow:hidden; }
+.home-extras>summary { display:flex; min-height:48px; align-items:center; justify-content:space-between; gap:12px; padding:0 15px; color:#cbd3dc; font-size:12px; font-weight:750; cursor:pointer; list-style:none; }
+.home-extras>summary::-webkit-details-marker { display:none; }
+.home-extras>summary svg { color:#848E9C; transition:transform .2s ease; }
+.home-extras[open]>summary svg { transform:rotate(180deg); }
+.home-extras-content { padding:0 12px 12px; }
+.home-extras-content .challenge-card { margin-top:4px; }
+@media(prefers-reduced-motion:reduce) { .home-extras>summary svg { transition:none; } }
