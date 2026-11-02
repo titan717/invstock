@@ -1,5 +1,5 @@
 import type { Stock } from "@/lib/market";
-import { ACHIEVEMENTS, calculateNetWorth, type GameNews, type GameState } from "@/lib/game-engine";
+import { ACHIEVEMENTS, calculateNetWorth, createWeeklyChallenge, type GameNews, type GameState } from "@/lib/game-engine";
 
 const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,value));
 const templates:[string,string,string,number][]=[
@@ -75,4 +75,42 @@ export function evaluateAchievements(state:GameState,stocks:Stock[]):{id:string;
   const unlocked=candidates.filter(item=>!state.achievements.includes(item.id));
   state.achievements=[...state.achievements,...unlocked.map(item=>item.id)];
   return unlocked;
+}
+
+export function updateProgression(state:GameState,stocks:Stock[],seed:number):void {
+  const week=Math.ceil(state.market.day/7);
+  if(state.weeklyChallenge.week!==week)state.weeklyChallenge=createWeeklyChallenge(week,calculateNetWorth(state,stocks));
+  let randomState=seed>>>0;
+  const random=()=>{randomState=(randomState*1664525+1013904223)>>>0;return randomState/4294967296;};
+  state.weeklyChallenge.bots=state.weeklyChallenge.bots.map(bot=>({...bot,returnPct:bot.returnPct+(random()-.49)*bot.risk*.12}));
+  const growth=Math.max(0,calculateNetWorth(state,stocks)-state.start);
+  state.missions=state.missions.map(mission=>({...mission,progress:Math.min(mission.target,mission.metric==="trades"?state.trades:mission.metric==="properties"?state.buildings.length:growth)}));
+  state.rank=state.xp>=2000?"Market Legend":state.xp>=1000?"Portfolio Pro":state.xp>=450?"Analyst":state.xp>=150?"Trader":"Apprentice";
+}
+export function claimMission(state:GameState,id:string):{ok:boolean;reason?:string} {
+  const mission=state.missions.find(item=>item.id===id);
+  if(!mission)return {ok:false,reason:"Mission not found."};
+  if(mission.claimed)return {ok:false,reason:"This mission reward has already been claimed."};
+  if(mission.progress<mission.target)return {ok:false,reason:"Complete the mission objective first."};
+  mission.claimed=true;state.cash+=mission.reward;state.xp+=mission.xpReward;
+  state.rank=state.xp>=2000?"Market Legend":state.xp>=1000?"Portfolio Pro":state.xp>=450?"Analyst":state.xp>=150?"Trader":"Apprentice";
+  return {ok:true};
+}
+export function joinWeeklyChallenge(state:GameState,stocks:Stock[]):{ok:boolean;reason?:string} {
+  if(state.weeklyChallenge.joined)return {ok:false,reason:"You have already joined this week's challenge."};
+  if(state.weeklyChallenge.claimed)return {ok:false,reason:"This week's challenge has ended."};
+  state.weeklyChallenge.joined=true;state.weeklyChallenge.startValue=calculateNetWorth(state,stocks);
+  return {ok:true};
+}
+export function claimWeeklyChallenge(state:GameState,stocks:Stock[]):{ok:boolean;reward?:number;reason?:string} {
+  const challenge=state.weeklyChallenge;
+  if(!challenge.joined)return {ok:false,reason:"Join the weekly challenge before claiming a reward."};
+  if(challenge.claimed)return {ok:false,reason:"The weekly reward has already been claimed."};
+  if(state.market.day<=challenge.week*7)return {ok:false,reason:"The challenge ends after seven simulated market days."};
+  const playerReturn=(calculateNetWorth(state,stocks)/Math.max(1,challenge.startValue)-1)*100;
+  const place=challenge.bots.filter(bot=>bot.returnPct>playerReturn).length+1;
+  const reward=place===1?challenge.reward:150;
+  state.cash+=reward;state.xp+=place===1?150:50;challenge.claimed=true;
+  state.rank=state.xp>=2000?"Market Legend":state.xp>=1000?"Portfolio Pro":state.xp>=450?"Analyst":state.xp>=150?"Trader":"Apprentice";
+  return {ok:true,reward};
 }
