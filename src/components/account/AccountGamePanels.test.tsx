@@ -36,6 +36,7 @@ describe("full simulator account panels", () => {
     fireEvent.click(screen.getByRole("button",{name:"Achievements"}));
     expect(screen.getByText("First Profit")).toBeTruthy();
     expect(screen.getByText("Unlocked")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button",{name:"Settings"}));
     fireEvent.click(screen.getByRole("button",{name:"5×"}));
     expect(onSpeed).toHaveBeenCalledWith(4);
   });
