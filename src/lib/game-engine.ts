@@ -2,6 +2,7 @@ import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
+import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -55,6 +56,7 @@ export type GameState = {
   cryptoHoldings: Record<string, CryptoHolding>;
   cryptoMarket: CryptoAsset[];
   businesses: Business[];
+  realEstate: RealEstateProperty[];
   lastActiveAt: number;
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
@@ -85,7 +87,7 @@ const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],lastActiveAt:0};
+  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -123,6 +125,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.settings.currency=["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD";
   state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";
   state.businesses=Array.isArray(source.businesses)?source.businesses:[];
+  state.realEstate=Array.isArray(source.realEstate)?source.realEstate:[];
   state.lastActiveAt=number(source.lastActiveAt);
   return state;
 }
@@ -144,7 +147,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
     cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
-    holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,businesses:Array.isArray(source.businesses)?source.businesses:[],lastActiveAt:number(source.lastActiveAt),buildings:Array.isArray(source.buildings)?source.buildings:[],
+    holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,businesses:Array.isArray(source.businesses)?source.businesses:[],realEstate:Array.isArray(source.realEstate)?source.realEstate:[],lastActiveAt:number(source.lastActiveAt),buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
     achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
     settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
@@ -179,7 +182,8 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
   const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
-  return state.cash+state.savings+positions+cryptoValue+businessValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  const realEstateValue=state.realEstate.reduce((sum,property)=>sum+property.value,0);
+  return state.cash+state.savings+positions+cryptoValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
@@ -312,12 +316,50 @@ export function sellBusinessAction(state:GameState,businessId:string):GameAction
   return result(state,true,business.name+" sold.");
 }
 
+
+export function purchasePropertyAction(state:GameState,listingId:string,city:string):GameActionResult {
+  const id="property-"+Date.now()+"-"+(state.realEstate.length+1);
+  const purchase=purchaseProperty(state.cash,listingId,city,id,DIFFICULTY_RULES[state.settings.difficulty].buildingCost);
+  if(!purchase.ok)return result(state,false,purchase.reason);
+  state.cash=purchase.cash??state.cash;
+  state.realEstate.push(purchase.property);
+  state.activity.unshift({type:"property-purchase",amount:purchase.property.value,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,purchase.property.name+" acquired in "+purchase.property.city+".");
+}
+
+export function upgradeRealEstateAction(state:GameState,propertyId:string):GameActionResult {
+  const index=state.realEstate.findIndex(item=>item.id===propertyId);
+  if(index<0)return result(state,false,"Property not found.");
+  const upgraded=upgradeProperty(state.realEstate[index],state.cash);
+  if(!upgraded.ok)return result(state,false,upgraded.reason);
+  state.cash=upgraded.cash??state.cash;
+  state.realEstate[index]=upgraded.property;
+  return result(state,true,"Property renovated.");
+}
+
+export function sellRealEstateAction(state:GameState,propertyId:string):GameActionResult {
+  const index=state.realEstate.findIndex(item=>item.id===propertyId);
+  if(index<0)return result(state,false,"Property not found.");
+  const [property]=state.realEstate.splice(index,1);
+  const sale=sellProperty(property);
+  state.cash+=sale.proceeds;
+  state.activity.unshift({type:"property-sale",amount:sale.proceeds,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,property.name+" sold.");
+}
+
 export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
   state.businesses=state.businesses.map(business=>{
     const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty);
     totalProfit+=result.profit;
     return result.business;
+  });
+  state.realEstate=state.realEstate.map(property=>{
+    const result=simulatePropertyMinutes(property,minutes,1,state.settings.difficulty);
+    totalProfit+=result.netIncome;
+    return result.property;
   });
   state.cash=Math.max(0,state.cash+totalProfit);
   return totalProfit;

@@ -460,3 +460,15 @@
   .game-business-market { align-items: flex-start; flex-wrap: wrap; }
   .game-business-market > span { flex-basis: 100%; }
 }
+
+
+/* Global real estate portfolio */
+.game-property-card {
+  border: 1px solid var(--border, #2b3139);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 12px 0;
+  background: var(--surface, #151a20);
+  display: grid;
+  gap: 12px;
+}
