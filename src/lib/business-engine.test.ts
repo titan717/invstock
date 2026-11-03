@@ -75,16 +75,3 @@ describe("business empire management", () => {
   });
 });
 
-function awaitFire(business: Business): Business {
-  const { fireEmployee } = requireBusinessModule();
-  const result = fireEmployee(business, "emp-1");
-  if (!result.ok) throw new Error("fixture fire failed");
-  return result.business;
-}
-function requireBusinessModule() {
-  return { fireEmployee: (business: Business, employeeId: string) => {
-    const employees = business.employees.filter(employee => employee.id !== employeeId);
-    if (employees.length === business.employees.length) return { ok: false as const, reason: "Employee not found." };
-    return { ok: true as const, business: { ...business, employees } };
-  }};
-}\n
