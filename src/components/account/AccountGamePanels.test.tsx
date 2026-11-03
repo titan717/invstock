@@ -47,7 +47,7 @@ describe("full simulator account panels", () => {
     render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={onBusinessBuy} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Businesses"}));
     fireEvent.change(screen.getByLabelText("Business city"),{target:{value:"Pune"}});
-    fireEvent.click(screen.getByRole("button",{name:"Acquire"}));
+    fireEvent.click(screen.getAllByRole("button",{name:"Acquire"})[0]);
     expect(onBusinessBuy).toHaveBeenCalledWith("retail-shop","Pune");
   });
 
