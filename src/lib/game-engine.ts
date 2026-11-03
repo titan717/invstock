@@ -354,6 +354,11 @@ export function advanceBusinessEconomy(state:GameState,minutes=1):number {
     totalProfit+=result.profit;
     return result.business;
   });
+  state.realEstate=state.realEstate.map(property=>{
+    const result=simulatePropertyMinutes(property,minutes);
+    totalProfit+=result.netIncome;
+    return result.property;
+  });
   state.cash=Math.max(0,state.cash+totalProfit);
   return totalProfit;
 }
