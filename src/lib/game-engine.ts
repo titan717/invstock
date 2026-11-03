@@ -123,7 +123,8 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.cryptoMarket=Array.isArray(source.cryptoMarket)?source.cryptoMarket:state.cryptoMarket;
   state.settings.currency=["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD";
   state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";
-  state.businesses=Array.isArray(source.businesses)?source.businesses:[];\n  state.realEstate=Array.isArray(source.realEstate)?source.realEstate:[];
+  state.businesses=Array.isArray(source.businesses)?source.businesses:[];
+  state.realEstate=Array.isArray(source.realEstate)?source.realEstate:[];
   state.lastActiveAt=number(source.lastActiveAt);
   return state;
 }
@@ -345,7 +346,8 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
   state.activity=state.activity.slice(0,100);
   return result(state,true,property.name+" sold.");
 }
-\nexport function advanceBusinessEconomy(state:GameState,minutes=1):number {
+
+export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
   state.businesses=state.businesses.map(business=>{
     const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty);
