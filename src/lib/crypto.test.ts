@@ -33,7 +33,7 @@ describe("simulated crypto exchange", () => {
   });
 
   it("stakes and unstakes available crypto without losing quantity", () => {
-    const portfolio: CryptoPortfolio = { cash: 0, holdings: { ETH: { quantity: 2, staked: 0 } } };
+    const portfolio: CryptoPortfolio = { cash: 0, holdings: { ETH: { quantity: 2, staked: 0, averageCost: 3000 } } };
     const staked = stakeCrypto(portfolio, "ETH", 1.5);
     expect(staked.ok).toBe(true);
     if (!staked.ok) return;
