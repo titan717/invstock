@@ -398,3 +398,65 @@
   .game-crypto-row > span:nth-child(2) { grid-column: 1; }
   .game-crypto-row button { grid-row: span 1; }
 }
+
+
+/* Business empire management */
+.game-business-card {
+  border: 1px solid var(--border, #2b3139);
+  border-radius: 14px;
+  padding: 14px;
+  margin: 12px 0;
+  background: var(--surface, #151a20);
+  display: grid;
+  gap: 12px;
+}
+.game-business-heading, .game-business-market, .game-employee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.game-business-heading > div, .game-business-market > span, .game-employee-row > span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.game-business-heading small, .game-business-market small, .game-employee-row small {
+  color: var(--muted, #848e9c);
+  font-size: 12px;
+}
+.game-business-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.game-business-metrics > span { display: grid; gap: 4px; min-width: 0; }
+.game-business-metrics small { color: var(--muted, #848e9c); font-size: 11px; }
+.game-business-metrics b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.game-employee-list { display: grid; gap: 8px; }
+.game-employee-row { border-top: 1px solid var(--border, #2b3139); padding-top: 8px; }
+.game-business-hire, .game-business-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.game-business-hire input, .game-business-hire select, .game-business-actions input {
+  min-width: 110px;
+  flex: 1 1 130px;
+}
+.game-business-market {
+  border-bottom: 1px solid var(--border, #2b3139);
+  padding: 12px 0;
+}
+.game-business-market > span { flex: 1; }
+.game-business-market button, .game-business-actions button, .game-business-hire button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 9px;
+}
+@media (max-width: 560px) {
+  .game-business-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .game-business-market { align-items: flex-start; flex-wrap: wrap; }
+  .game-business-market > span { flex-basis: 100%; }
+}
