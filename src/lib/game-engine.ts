@@ -71,6 +71,12 @@ export const ACHIEVEMENTS = [
   {id:"Millionaire",description:"Reach one million dollars in net worth."}
 ] as const;
 const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal"};
+export const DIFFICULTY_RULES: Record<Difficulty,{marketVolatility:number;businessIncome:number;buildingCost:number;savingsApy:number;loanApr:number;creditLimit:number;missedPaymentPenalty:number}> = {
+  easy:{marketVolatility:.75,businessIncome:1.2,buildingCost:.85,savingsApy:.04,loanApr:.08,creditLimit:.45,missedPaymentPenalty:.005},
+  normal:{marketVolatility:1,businessIncome:1,buildingCost:1,savingsApy:.035,loanApr:.12,creditLimit:.35,missedPaymentPenalty:.01},
+  hard:{marketVolatility:1.35,businessIncome:.9,buildingCost:1.15,savingsApy:.03,loanApr:.16,creditLimit:.3,missedPaymentPenalty:.015},
+  expert:{marketVolatility:1.7,businessIncome:.8,buildingCost:1.35,savingsApy:.02,loanApr:.22,creditLimit:.25,missedPaymentPenalty:.02}
+};
 const object = (v:unknown):Record<string,any> => v && typeof v==="object" && !Array.isArray(v) ? v as Record<string,any> : {};
 const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(v) ? v : fallback;
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
@@ -177,7 +183,7 @@ export function bankAction(state:GameState, stocks:Stock[], action:"deposit"|"wi
   if(!Number.isFinite(amount)||amount<=0)return result(state,false,"Enter an amount greater than zero.");
   if(action==="deposit"){if(amount>state.cash)return result(state,false,"Not enough cash to deposit.");state.cash-=amount;state.savings+=amount;state.activity.unshift({type:"deposit",amount,day:state.market.day});}
   if(action==="withdraw"){if(amount>state.savings)return result(state,false,"Not enough savings to withdraw.");state.savings-=amount;state.cash+=amount;state.activity.unshift({type:"withdraw",amount,day:state.market.day});}
-  if(action==="borrow"){const available=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);if(amount>available)return result(state,false,"Above your available credit limit.");state.loan+=amount;state.cash+=amount;state.activity.unshift({type:"loan",amount,day:state.market.day});}
+  if(action==="borrow"){const available=Math.max(0,calculateNetWorth(state,stocks)*DIFFICULTY_RULES[state.settings.difficulty].creditLimit-state.loan);if(amount>available)return result(state,false,"Above your available credit limit.");state.loan+=amount;state.cash+=amount;state.activity.unshift({type:"loan",amount,day:state.market.day});}
   if(action==="repay"){if(amount>state.cash||amount>state.loan)return result(state,false,"Invalid loan repayment.");state.cash-=amount;state.loan-=amount;state.activity.unshift({type:"repayment",amount,day:state.market.day});}
   state.activity=state.activity.slice(0,100);return result(state,true);
 }
@@ -187,7 +193,7 @@ export function buildingAction(state:GameState,_stocks:Stock[],action:"buy"|"upg
     if(!definition)return result(state,false,"Unknown property.");
     if(state.cash<definition.cost)return result(state,false,"Not enough cash.");
     state.cash-=definition.cost;
-    state.buildings.push({id:building.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+(state.buildings.length+1),...definition,value:definition.cost,level:1});
+    state.buildings.push({id:building.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+(state.buildings.length+1),...definition,cost:purchaseCost,value:purchaseCost,level:1});
     if(!state.achievements.includes("Landlord"))state.achievements.push("Landlord");
     return result(state,true,definition.name+" acquired.");
   }
@@ -224,7 +230,7 @@ export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState
   }
   state.savings*=1+.035/365;
   state.loan*=1+.12/365;
-  if(state.loan>0){const minimum=state.loan*.02;if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;}else{state.loan*=1.01;}}
+  if(state.loan>0){const minimum=state.loan*.02;if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;}else{state.loan*=1+difficulty.missedPaymentPenalty;}}
   state.market.day=day;state.lastBankDay=day;
   if(state.loan>calculateNetWorth(state,stocks)+state.loan&&state.loan>0){
     const largest=Object.entries(state.holdings).sort((a,b)=>b[1].quantity*(stocks.find(s=>s.ticker===b[0])?.price??0)-a[1].quantity*(stocks.find(s=>s.ticker===a[0])?.price??0))[0];
