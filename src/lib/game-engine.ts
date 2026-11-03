@@ -56,6 +56,7 @@ export type GameState = {
   cryptoHoldings: Record<string, CryptoHolding>;
   cryptoMarket: CryptoAsset[];
   businesses: Business[];
+  realEstate: RealEstateProperty[];
   lastActiveAt: number;
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
