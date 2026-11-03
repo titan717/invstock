@@ -1,7 +1,7 @@
 import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
-import { purchaseBusiness, hireEmployee, fireEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
+import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -252,7 +252,18 @@ export function hireBusinessEmployeeAction(state:GameState,businessId:string,rol
   return result(state,true,name+" hired.");
 }
 
-export function fireBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
+
+export function promoteBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const promoted=promoteEmployee(state.businesses[index],employeeId);
+  if(!promoted.ok)return result(state,false,promoted.reason);
+  state.businesses[index]=promoted.business;
+  state.activity.unshift({type:"business-promotion",day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Employee promoted.");
+}
+\nexport function fireBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
   const index=state.businesses.findIndex(item=>item.id===businessId);
   if(index<0)return result(state,false,"Business not found.");
   const fired=fireEmployee(state.businesses[index],employeeId);
@@ -313,7 +324,7 @@ export function advanceBusinessEconomy(state:GameState,minutes=1):number {
 
 export const OFFLINE_EARNINGS_CAP_MINUTES=480;
 export function applyOfflineBusinessEarnings(state:GameState,elapsedMs:number):{earned:number;minutes:number} {
-  const elapsedMinutes=state.lastActiveAt>0&&Number.isFinite(elapsedMs)?Math.max(0,elapsedMs/60000):0;
+  const elapsedMinutes=state.lastActiveAt>0&&state.settings.speed>0&&Number.isFinite(elapsedMs)?Math.max(0,elapsedMs/60000):0;
   const minutes=Math.min(OFFLINE_EARNINGS_CAP_MINUTES,elapsedMinutes);
   const earned=advanceBusinessEconomy(state,minutes);
   state.lastActiveAt=Date.now();
