@@ -16,7 +16,8 @@ type Props={
   onCryptoTrade:(symbol:string,side:"buy"|"sell",quantity:number)=>void;
   onBusinessBuy:(definitionId:string,city:string)=>void;
   onBusinessHire:(businessId:string,role:EmployeeRole,name:string)=>void;
-  onBusinessFire:(businessId:string,employeeId:string)=>void;\n  onBusinessPromote:(businessId:string,employeeId:string)=>void;
+  onBusinessFire:(businessId:string,employeeId:string)=>void;
+  onBusinessPromote:(businessId:string,employeeId:string)=>void;
   onBusinessUpgrade:(businessId:string)=>void;
   onBusinessStrategy:(businessId:string,strategy:BusinessStrategy)=>void;
   onBusinessRelocate:(businessId:string,city:string)=>void;
