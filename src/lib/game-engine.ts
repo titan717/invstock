@@ -1,5 +1,6 @@
 import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
+import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -49,7 +50,7 @@ export type GameState = {
   pendingNews: GameNews[];
   prngSeed: number;
   eventsNextAt: number;
-  orphanedPositions: Record<string, GameHolding>;
+  orphanedPositions: Record<string, GameHolding>;\n  cryptoHoldings: Record<string, CryptoHolding>;\n  cryptoMarket: CryptoAsset[];
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -73,7 +74,7 @@ const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
+  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed)};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -105,7 +106,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.pendingNews=Array.isArray(source.pendingNews)?source.pendingNews:[];
   state.prngSeed=number(source.prngSeed,731991)>>>0;
   state.eventsNextAt=number(source.eventsNextAt);
-  state.lastDividendDay=number(source.lastDividendDay);
+  state.lastDividendDay=number(source.lastDividendDay);\n  state.cryptoHoldings=object(source.cryptoHoldings) as Record<string,CryptoHolding>;\n  state.cryptoMarket=Array.isArray(source.cryptoMarket)?source.cryptoMarket:state.cryptoMarket;\n  state.settings.currency=["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD";\n  state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";
   return state;
 }
 
@@ -126,7 +127,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
     cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
-    holdings,buildings:Array.isArray(source.buildings)?source.buildings:[],
+    holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
     achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
     settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
@@ -195,7 +196,19 @@ export function buildingAction(state:GameState,_stocks:Stock[],action:"buy"|"upg
   state.cash+=asset.value*.92;state.buildings.splice(index,1);
   return result(state,true,"Property sold at market value.");
 }
-export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState;market:Stock[];events:GameNews[]} {
+
+export function cryptoTradeAction(state:GameState, symbol:string, side:"buy"|"sell", quantity:number):GameActionResult {
+  const asset=state.cryptoMarket.find(item=>item.symbol===symbol);
+  if(!asset)return result(state,false,"Crypto asset not found.");
+  const trade=executeCryptoTrade({cash:state.cash,holdings:state.cryptoHoldings},asset,side,quantity);
+  if(!trade.ok)return result(state,false,trade.reason);
+  state.cash=trade.portfolio.cash;
+  state.cryptoHoldings=trade.portfolio.holdings;
+  state.activity.unshift({type:side==="buy"?"crypto-buy":"crypto-sell",ticker:symbol,qty:quantity,price:trade.executionPrice,fee:trade.fee,amount:trade.executionPrice*quantity,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,side==="buy"?"Crypto purchased.":"Crypto sold.");
+}
+\nexport function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState;market:Stock[];events:GameNews[]} {
   const day=state.market.day+1;
   if(state.lastDividendDay<day){
     for(const stock of stocks){const holding=state.holdings[stock.ticker];if(holding&&stock.dividend>0){const payment=stock.price*stock.dividend/365*holding.quantity;state.cash+=payment;state.activity.unshift({type:"dividend",ticker:stock.ticker,amount:payment,day});}}
