@@ -1,4 +1,6 @@
 import type { Stock } from "@/lib/market";
+import type { CurrencyCode, Difficulty } from "@/lib/currency";
+import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -6,7 +8,7 @@ export const MARKET_SESSION_MINUTES = 390;
 export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
-export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark" };
+export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty };
 export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean };
 export type GameMission={id:string;title:string;description:string;metric:"trades"|"properties"|"growth";target:number;progress:number;reward:number;xpReward:number;claimed:boolean};
 export type ChallengeBot={name:string;returnPct:number;risk:number};
@@ -18,7 +20,7 @@ export function createDefaultMissions():GameMission[]{return [
 ];}
 export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
-  version: 2;
+  version: 3;
   profileName: string;
   xp: number;
   rank: string;
@@ -49,6 +51,8 @@ export type GameState = {
   prngSeed: number;
   eventsNextAt: number;
   orphanedPositions: Record<string, GameHolding>;
+  cryptoHoldings: Record<string, CryptoHolding>;
+  cryptoMarket: CryptoAsset[];
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -66,13 +70,19 @@ export const ACHIEVEMENTS = [
   {id:"Landlord",description:"Buy your first property."},
   {id:"Millionaire",description:"Reach one million dollars in net worth."}
 ] as const;
-const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark"};
+const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal"};
+export const DIFFICULTY_RULES: Record<Difficulty,{marketVolatility:number;businessIncome:number;buildingCost:number;savingsApy:number;loanApr:number;creditLimit:number;missedPaymentPenalty:number}> = {
+  easy:{marketVolatility:.75,businessIncome:1.2,buildingCost:.85,savingsApy:.04,loanApr:.08,creditLimit:.45,missedPaymentPenalty:.005},
+  normal:{marketVolatility:1,businessIncome:1,buildingCost:1,savingsApy:.035,loanApr:.12,creditLimit:.35,missedPaymentPenalty:.01},
+  hard:{marketVolatility:1.35,businessIncome:.9,buildingCost:1.15,savingsApy:.03,loanApr:.16,creditLimit:.3,missedPaymentPenalty:.015},
+  expert:{marketVolatility:1.7,businessIncome:.8,buildingCost:1.35,savingsApy:.02,loanApr:.22,creditLimit:.25,missedPaymentPenalty:.02}
+};
 const object = (v:unknown):Record<string,any> => v && typeof v==="object" && !Array.isArray(v) ? v as Record<string,any> : {};
 const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(v) ? v : fallback;
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:2,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
+  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed)};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -105,12 +115,16 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.prngSeed=number(source.prngSeed,731991)>>>0;
   state.eventsNextAt=number(source.eventsNextAt);
   state.lastDividendDay=number(source.lastDividendDay);
+  state.cryptoHoldings=object(source.cryptoHoldings) as Record<string,CryptoHolding>;
+  state.cryptoMarket=Array.isArray(source.cryptoMarket)?source.cryptoMarket:state.cryptoMarket;
+  state.settings.currency=["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD";
+  state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";
   return state;
 }
 
 export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
   const source=object(raw);
-  if(source.version!==2)return migrateLegacySave(raw,stocks);
+  if(source.version!==2&&source.version!==3)return migrateLegacySave(raw,stocks);
   const defaults=createGameState();
   const market=object(source.market),challenge=object(source.weeklyChallenge);
   const holdings:Record<string,GameHolding>={};
@@ -120,15 +134,15 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
   return {
-    ...defaults,...source,version:2,profileName:String(source.profileName??defaults.profileName),
+    ...defaults,...source,version:3,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
     cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
-    holdings,buildings:Array.isArray(source.buildings)?source.buildings:[],
+    holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
     achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
-    settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)},
+    settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
     history:Array.isArray(source.history)?source.history.slice(-1950):[],
     dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
     holdSince:object(source.holdSince) as Record<string,number>,
@@ -158,7 +172,8 @@ export function restoreMarketSnapshot(state:GameState, stocks:Stock[]):Stock[] {
 export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const prices=new Map(stocks.map(s=>[s.ticker,s.price]));
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
-  return state.cash+state.savings+positions+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
+  return state.cash+state.savings+positions+cryptoValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
@@ -168,7 +183,7 @@ export function bankAction(state:GameState, stocks:Stock[], action:"deposit"|"wi
   if(!Number.isFinite(amount)||amount<=0)return result(state,false,"Enter an amount greater than zero.");
   if(action==="deposit"){if(amount>state.cash)return result(state,false,"Not enough cash to deposit.");state.cash-=amount;state.savings+=amount;state.activity.unshift({type:"deposit",amount,day:state.market.day});}
   if(action==="withdraw"){if(amount>state.savings)return result(state,false,"Not enough savings to withdraw.");state.savings-=amount;state.cash+=amount;state.activity.unshift({type:"withdraw",amount,day:state.market.day});}
-  if(action==="borrow"){const available=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);if(amount>available)return result(state,false,"Above your available credit limit.");state.loan+=amount;state.cash+=amount;state.activity.unshift({type:"loan",amount,day:state.market.day});}
+  if(action==="borrow"){const available=Math.max(0,calculateNetWorth(state,stocks)*DIFFICULTY_RULES[state.settings.difficulty].creditLimit-state.loan);if(amount>available)return result(state,false,"Above your available credit limit.");state.loan+=amount;state.cash+=amount;state.activity.unshift({type:"loan",amount,day:state.market.day});}
   if(action==="repay"){if(amount>state.cash||amount>state.loan)return result(state,false,"Invalid loan repayment.");state.cash-=amount;state.loan-=amount;state.activity.unshift({type:"repayment",amount,day:state.market.day});}
   state.activity=state.activity.slice(0,100);return result(state,true);
 }
@@ -176,9 +191,10 @@ export function buildingAction(state:GameState,_stocks:Stock[],action:"buy"|"upg
   if(action==="buy"){
     const definition=BUILDING_CATALOG.find(item=>item.name===building);
     if(!definition)return result(state,false,"Unknown property.");
-    if(state.cash<definition.cost)return result(state,false,"Not enough cash.");
-    state.cash-=definition.cost;
-    state.buildings.push({id:building.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+(state.buildings.length+1),...definition,value:definition.cost,level:1});
+    const purchaseCost=definition.cost*DIFFICULTY_RULES[state.settings.difficulty].buildingCost;
+    if(state.cash<purchaseCost)return result(state,false,"Not enough cash.");
+    state.cash-=purchaseCost;
+    state.buildings.push({id:building.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+(state.buildings.length+1),...definition,cost:purchaseCost,value:purchaseCost,level:1});
     if(!state.achievements.includes("Landlord"))state.achievements.push("Landlord");
     return result(state,true,definition.name+" acquired.");
   }
@@ -194,15 +210,29 @@ export function buildingAction(state:GameState,_stocks:Stock[],action:"buy"|"upg
   state.cash+=asset.value*.92;state.buildings.splice(index,1);
   return result(state,true,"Property sold at market value.");
 }
+
+export function cryptoTradeAction(state:GameState, symbol:string, side:"buy"|"sell", quantity:number):GameActionResult {
+  const asset=state.cryptoMarket.find(item=>item.symbol===symbol);
+  if(!asset)return result(state,false,"Crypto asset not found.");
+  const trade=executeCryptoTrade({cash:state.cash,holdings:state.cryptoHoldings},asset,side,quantity);
+  if(!trade.ok)return result(state,false,trade.reason);
+  state.cash=trade.portfolio.cash;
+  state.cryptoHoldings=trade.portfolio.holdings;
+  state.activity.unshift({type:side==="buy"?"crypto-buy":"crypto-sell",ticker:symbol,qty:quantity,price:trade.executionPrice,fee:trade.fee,amount:trade.executionPrice*quantity,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,side==="buy"?"Crypto purchased.":"Crypto sold.");
+}
+
 export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState;market:Stock[];events:GameNews[]} {
   const day=state.market.day+1;
   if(state.lastDividendDay<day){
     for(const stock of stocks){const holding=state.holdings[stock.ticker];if(holding&&stock.dividend>0){const payment=stock.price*stock.dividend/365*holding.quantity;state.cash+=payment;state.activity.unshift({type:"dividend",ticker:stock.ticker,amount:payment,day});}}
     state.lastDividendDay=day;
   }
-  state.savings*=1+.035/365;
-  state.loan*=1+.12/365;
-  if(state.loan>0){const minimum=state.loan*.02;if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;}else{state.loan*=1.01;}}
+  const difficulty=DIFFICULTY_RULES[state.settings.difficulty];
+  state.savings*=1+difficulty.savingsApy/365;
+  state.loan*=1+difficulty.loanApr/365;
+  if(state.loan>0){const minimum=state.loan*.02;if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;}else{state.loan*=1+difficulty.missedPaymentPenalty;}}
   state.market.day=day;state.lastBankDay=day;
   if(state.loan>calculateNetWorth(state,stocks)+state.loan&&state.loan>0){
     const largest=Object.entries(state.holdings).sort((a,b)=>b[1].quantity*(stocks.find(s=>s.ticker===b[0])?.price??0)-a[1].quantity*(stocks.find(s=>s.ticker===a[0])?.price??0))[0];
