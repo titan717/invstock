@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ACHIEVEMENTS, BUILDING_CATALOG, calculateNetWorth, type GameState } from "@/lib/game-engine";
 import type { Stock } from "@/lib/market";
+import { CURRENCIES, formatCompactMoney, formatMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
 
 type BankAction="deposit"|"withdraw"|"borrow"|"repay";
 type BuildingAction="buy"|"upgrade"|"sell";
@@ -12,23 +13,23 @@ type Props={
   onBank:(action:BankAction,amount:number)=>void;
   onBuilding:(action:BuildingAction,idOrName:string)=>void;
   onSpeed:(speed:number)=>void;
-  onSetting:(key:"sound"|"haptics",value:boolean)=>void;
+  onSetting:(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>void;
   onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
 };
-const money=(value:number)=>new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(value);
+
 
 export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
   const [panel,setPanel]=useState<Panel>("Bank");
   const [amount,setAmount]=useState("100");
   const [saveText,setSaveText]=useState("");
   const [confirmReset,setConfirmReset]=useState(false);
-  const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
+  const money=(value:number)=>formatMoney(value,state.settings.currency);\n  const compactMoney=(value:number)=>formatCompactMoney(value,state.settings.currency);\n  const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
       {(["Bank","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
     </div>
     {panel==="Bank"&&<div className="game-panel-content">
-      <div className="game-balance-grid"><div><small>Cash balance</small><b>{money(state.cash)}</b></div><div><small>Savings balance</small><b>{money(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{money(state.loan)}</b></div><div><small>Available credit</small><b>{money(availableCredit)}</b></div></div>
+      <div className="game-balance-grid"><div><small>Cash balance</small><b>{compactMoney(state.cash)}</b></div><div><small>Savings balance</small><b>{compactMoney(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{compactMoney(state.loan)}</b></div><div><small>Available credit</small><b>{compactMoney(availableCredit)}</b></div></div>
       <label className="game-field-label" htmlFor="bank-amount">Amount in USD</label>
       <input id="bank-amount" className="game-amount-input" type="number" min="0.01" step="0.01" value={amount} onChange={e=>setAmount(e.target.value)}/>
       <div className="game-action-grid">
@@ -53,7 +54,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
       {ACHIEVEMENTS.map(item=>{const unlocked=state.achievements.includes(item.id);return <div className="game-achievement" key={item.id}><span>{unlocked?"🏆":"🔒"}</span><div><b>{item.id}</b><small>{item.description}</small></div><strong className={unlocked?"gain":""}>{unlocked?"Unlocked":"Locked"}</strong></div>;})}
     </div>}
     {panel==="Settings"&&<div className="game-panel-content">
-      <h3>Simulation speed</h3>
+      <h3>Display currency</h3>\n      <label className="game-field-label" htmlFor="display-currency">Choose your currency</label>\n      <select id="display-currency" className="game-amount-input" value={state.settings.currency} onChange={e=>onSetting("currency",e.target.value as CurrencyCode)}>{CURRENCIES.map(item=><option key={item.code} value={item.code}>{item.label}</option>)}</select>\n      <p className="game-muted">Currency changes only how values are displayed. Your actual game balance remains in USD. Conversion uses fixed simulator reference rates, not live FX quotes.</p>\n      <h3>Difficulty</h3>\n      <label className="game-field-label" htmlFor="game-difficulty">Economy difficulty</label>\n      <select id="game-difficulty" className="game-amount-input" value={state.settings.difficulty} onChange={e=>onSetting("difficulty",e.target.value as Difficulty)}><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option><option value="expert">Expert</option></select>\n      <p className="game-muted">Difficulty is saved with your profile. Its effects will apply across markets, business costs, property and credit as those systems are introduced.</p>\n      <h3>Simulation speed</h3>
       <div className="game-speed-options">{[0,1,2,5,60,390].map(speed=><button key={speed} className={state.settings.speed===speed?"selected":""} onClick={()=>onSpeed(speed)}>{speed===0?"Pause":speed+"×"}</button>)}</div>
       <label className="game-setting-row"><span><b>Sound effects</b><small>Trade and market event sounds</small></span><input type="checkbox" checked={state.settings.sound} onChange={e=>onSetting("sound",e.target.checked)}/></label>
       <label className="game-setting-row"><span><b>Haptic feedback</b><small>Subtle feedback on supported devices</small></span><input type="checkbox" checked={state.settings.haptics} onChange={e=>onSetting("haptics",e.target.checked)}/></label>
