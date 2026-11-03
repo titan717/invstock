@@ -181,7 +181,8 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
   const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
-  return state.cash+state.savings+positions+cryptoValue+businessValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  const realEstateValue=state.realEstate.reduce((sum,property)=>sum+property.value,0);
+  return state.cash+state.savings+positions+cryptoValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
