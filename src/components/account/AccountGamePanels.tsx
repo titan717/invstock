@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ACHIEVEMENTS, BUILDING_CATALOG, calculateNetWorth, type GameState } from "@/lib/game-engine";
+import { ACHIEVEMENTS, BUILDING_CATALOG, calculateNetWorth, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import type { Stock } from "@/lib/market";
 import { CURRENCIES, formatCompactMoney, formatMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
 
@@ -27,7 +27,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
   const [confirmReset,setConfirmReset]=useState(false);
   const money=(value:number)=>formatMoney(value,state.settings.currency);
   const compactMoney=(value:number)=>formatCompactMoney(value,state.settings.currency);
-  const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
+  const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*DIFFICULTY_RULES[state.settings.difficulty].creditLimit-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
       {(["Bank","Crypto","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
@@ -58,7 +58,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
       <h3>Your properties</h3>
       {state.buildings.length?state.buildings.map(item=><div className="game-property" key={item.id}><span className="game-property-icon">{item.icon}</span><div><b>{item.name}</b><small>Level {item.level} · {money(item.income)}/min · Value {money(item.value)}</small></div><button onClick={()=>onBuilding("upgrade",item.id)}>Upgrade {item.name}</button><button className="danger-outline" onClick={()=>onBuilding("sell",item.id)}>Sell</button></div>):<p className="game-muted">You have not acquired any properties yet.</p>}
       <h3>Property market</h3>
-      {BUILDING_CATALOG.map(item=><div className="game-property" key={item.name}><span className="game-property-icon">{item.icon}</span><div><b>{item.name}</b><small>Produces {money(item.income)}/min · Owned {state.buildings.filter(x=>x.name===item.name).length}</small></div><b>{money(item.cost)}</b><button onClick={()=>onBuilding("buy",item.name)}>Buy {item.name}</button></div>)}
+      {BUILDING_CATALOG.map(item=><div className="game-property" key={item.name}><span className="game-property-icon">{item.icon}</span><div><b>{item.name}</b><small>Produces {money(item.income)}/min · Owned {state.buildings.filter(x=>x.name===item.name).length}</small></div><b>{money(item.cost*DIFFICULTY_RULES[state.settings.difficulty].buildingCost)}</b><button onClick={()=>onBuilding("buy",item.name)}>Buy {item.name}</button></div>)}
     </div>}
     {panel==="Achievements"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Achievements unlocked</small><b>{state.achievements.length}/{ACHIEVEMENTS.length}</b></div><div><small>Best net worth</small><b>{money(state.best)}</b></div><div><small>Market day</small><b>{state.market.day}</b></div><div><small>Completed trades</small><b>{state.trades}</b></div></div>
