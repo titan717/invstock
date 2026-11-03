@@ -16,7 +16,7 @@ type Props={
   onCryptoTrade:(symbol:string,side:"buy"|"sell",quantity:number)=>void;
   onBusinessBuy:(definitionId:string,city:string)=>void;
   onBusinessHire:(businessId:string,role:EmployeeRole,name:string)=>void;
-  onBusinessFire:(businessId:string,employeeId:string)=>void;
+  onBusinessFire:(businessId:string,employeeId:string)=>void;\n  onBusinessPromote:(businessId:string,employeeId:string)=>void;
   onBusinessUpgrade:(businessId:string)=>void;
   onBusinessStrategy:(businessId:string,strategy:BusinessStrategy)=>void;
   onBusinessRelocate:(businessId:string,city:string)=>void;
@@ -27,7 +27,7 @@ type Props={
 };
 
 
-export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
   const [panel,setPanel]=useState<Panel>("Bank");
   const [amount,setAmount]=useState("100");
   const [cryptoAmount,setCryptoAmount]=useState("0.01");
@@ -73,7 +73,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
         <div className="game-business-metrics"><span><small>Daily revenue</small><b>{money(economics.dailyRevenue)}</b></span><span><small>Daily expenses</small><b>{money(economics.dailyOperatingCosts+economics.dailyPayroll)}</b></span><span><small>Daily profit</small><b className={economics.dailyProfit>=0?"gain":"loss"}>{money(economics.dailyProfit)}</b></span><span><small>Employees</small><b>{business.employees.length}/20</b></span></div>
         <label className="game-field-label" htmlFor={"strategy-"+business.id}>Business strategy</label>
         <select id={"strategy-"+business.id} className="game-amount-input" value={business.strategy} onChange={e=>onBusinessStrategy(business.id,e.target.value as BusinessStrategy)}><option value="value">Value pricing · higher demand</option><option value="balanced">Balanced</option><option value="premium">Premium pricing · lower demand</option></select>
-        <div className="game-employee-list">{business.employees.map(employee=><div className="game-employee-row" key={employee.id}><span><b>{employee.name}</b><small>{EMPLOYEE_ROLES[employee.role].label} · {money(employee.salaryPerDay)}/day</small></span><button className="danger-outline" onClick={()=>onBusinessFire(business.id,employee.id)}>Dismiss</button></div>)}</div>
+        <div className="game-employee-list">{business.employees.map(employee=><div className="game-employee-row" key={employee.id}><span><b>{employee.name}</b><small>{EMPLOYEE_ROLES[employee.role].label} · {money(employee.salaryPerDay)}/day</small></span><button onClick={()=>onBusinessPromote(business.id,employee.id)} disabled={employee.role==="director"}>Promote</button><button className="danger-outline" onClick={()=>onBusinessFire(business.id,employee.id)}>Dismiss</button></div>)}</div>
         <div className="game-business-hire"><input aria-label={"Employee name for "+business.name} placeholder="Employee name" value={employeeName} onChange={e=>setEmployeeName(e.target.value)}/><select aria-label={"Employee role for "+business.name} value={employeeRole} onChange={e=>setEmployeeRole(e.target.value as EmployeeRole)}>{Object.entries(EMPLOYEE_ROLES).map(([role,definition])=><option key={role} value={role}>{definition.label} · {money(definition.salaryPerDay)}/day</option>)}</select><button onClick={()=>{onBusinessHire(business.id,employeeRole,employeeName);setEmployeeName("");}}>Hire</button></div>
         <div className="game-business-actions"><button onClick={()=>onBusinessUpgrade(business.id)}>Upgrade</button><input aria-label={"Relocation city for "+business.name} value={relocationCity} onChange={e=>setRelocationCity(e.target.value)} placeholder="New city"/><button onClick={()=>onBusinessRelocate(business.id,relocationCity)}>Relocate</button><button className="danger-outline" onClick={()=>onBusinessSell(business.id)}>Sell company</button></div>
       </div>;}):<p className="game-muted">You do not own a company yet. Choose an industry below to start your first business.</p>}
