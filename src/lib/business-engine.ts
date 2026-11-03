@@ -135,7 +135,8 @@ export function promoteEmployee(business: Business, employeeId: string): Busines
   employees[index] = updated;
   return { ok: true, business: { ...business, employees } };
 }
-\nexport function setBusinessStrategy(business: Business, strategy: BusinessStrategy): Business {
+
+export function setBusinessStrategy(business: Business, strategy: BusinessStrategy): Business {
   return { ...business, strategy };
 }
 
