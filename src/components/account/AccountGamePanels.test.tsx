@@ -41,7 +41,26 @@ describe("full simulator account panels", () => {
     expect(onSpeed).toHaveBeenCalledWith(5);
   });
 
-  it("shows crypto markets and forwards fractional buy and sell orders", () => {\n    const onCryptoTrade=vi.fn();\n    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={onCryptoTrade} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);\n    fireEvent.click(screen.getByRole("button",{name:"Crypto"}));\n    fireEvent.change(screen.getByLabelText("Order quantity (crypto units)"),{target:{value:"0.025"}});\n    fireEvent.click(screen.getAllByRole("button",{name:"Buy"})[0]);\n    expect(onCryptoTrade).toHaveBeenCalledWith("BTC","buy",0.025);\n  });\n\n  it("saves currency and difficulty preferences from Settings", () => {\n    const onSetting=vi.fn();\n    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={onSetting} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);\n    fireEvent.click(screen.getByRole("button",{name:"Settings"}));\n    fireEvent.change(screen.getByLabelText("Choose your currency"),{target:{value:"INR"}});\n    fireEvent.change(screen.getByLabelText("Economy difficulty"),{target:{value:"hard"}});\n    expect(onSetting).toHaveBeenCalledWith("currency","INR");\n    expect(onSetting).toHaveBeenCalledWith("difficulty","hard");\n  });\n\n  it("requires an explicit in-app confirmation before resetting progress", () => {
+  it("shows crypto markets and forwards fractional buy and sell orders", () => {
+    const onCryptoTrade=vi.fn();
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={onCryptoTrade} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Crypto"}));
+    fireEvent.change(screen.getByLabelText("Order quantity (crypto units)"),{target:{value:"0.025"}});
+    fireEvent.click(screen.getAllByRole("button",{name:"Buy"})[0]);
+    expect(onCryptoTrade).toHaveBeenCalledWith("BTC","buy",0.025);
+  });
+
+  it("saves currency and difficulty preferences from Settings", () => {
+    const onSetting=vi.fn();
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={onSetting} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Settings"}));
+    fireEvent.change(screen.getByLabelText("Choose your currency"),{target:{value:"INR"}});
+    fireEvent.change(screen.getByLabelText("Economy difficulty"),{target:{value:"hard"}});
+    expect(onSetting).toHaveBeenCalledWith("currency","INR");
+    expect(onSetting).toHaveBeenCalledWith("difficulty","hard");
+  });
+
+  it("requires an explicit in-app confirmation before resetting progress", () => {
     const onReset=vi.fn();
     render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={onReset}/>);
     fireEvent.click(screen.getByRole("button",{name:"Settings"}));
