@@ -243,10 +243,12 @@ export function purchaseBusinessAction(state:GameState,definitionId:string,city:
 export function hireBusinessEmployeeAction(state:GameState,businessId:string,role:EmployeeRole,name:string):GameActionResult {
   const index=state.businesses.findIndex(item=>item.id===businessId);
   if(index<0)return result(state,false,"Business not found.");
-  const business=state.businesses[index],id=businessId+"-employee-"+(business.employees.length+1);
+  const business=state.businesses[index],id=businessId+"-employee-"+(state.activity.length+1);
   const hired=hireEmployee(business,role,id,name);
   if(!hired.ok)return result(state,false,hired.reason);
   state.businesses[index]=hired.business;
+  state.activity.unshift({type:"business-hire",amount:hired.business.employees.find(employee=>employee.id===id)?.salaryPerDay??0,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
   return result(state,true,name+" hired.");
 }
 
@@ -256,6 +258,8 @@ export function fireBusinessEmployeeAction(state:GameState,businessId:string,emp
   const fired=fireEmployee(state.businesses[index],employeeId);
   if(!fired.ok)return result(state,false,fired.reason);
   state.businesses[index]=fired.business;
+  state.activity.unshift({type:"business-fire",day:state.market.day});
+  state.activity=state.activity.slice(0,100);
   return result(state,true,"Employee dismissed.");
 }
 
