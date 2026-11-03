@@ -21,7 +21,7 @@ describe("global real estate market", () => {
     expect(london.ok).toBe(true);
     if (!bengaluru.ok || !london.ok) return;
     expect(london.property.value).toBeGreaterThan(bengaluru.property.value);
-    expect(london.cash).toBeLessThan(bengaluru.cash);
+    expect(london.cash??0).toBeLessThan(bengaluru.cash??0);
   });
 
   it("calculates rental income after occupancy and maintenance costs", () => {
@@ -36,7 +36,7 @@ describe("global real estate market", () => {
   it("upgrades and sells a property while returning shared cash", () => {
     const purchase = purchaseProperty(100000, "studio-apartment", "Bengaluru", "property-1");
     if (!purchase.ok) throw new Error("fixture purchase failed");
-    const upgraded = upgradeProperty(purchase.property, purchase.cash);
+    const upgraded = upgradeProperty(purchase.property, purchase.cash??0);
     expect(upgraded.ok).toBe(true);
     if (!upgraded.ok) return;
     expect(upgraded.property.level).toBe(2);
