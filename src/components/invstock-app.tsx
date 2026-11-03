@@ -7,7 +7,7 @@ import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, initialPortfolio, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
-import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
 import { formatMoney, formatCompactMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
@@ -92,12 +92,12 @@ export default function InvStockApp(){
   if(legacy&&!legacyMigrated){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);localStorage.setItem("invstock-legacy-migrated","true");}
   else if(savedGame){const parsed=JSON.parse(savedGame);restored=hydrateGameState(parsed,stocksRef.current);}
   else if(current){const data=JSON.parse(current);if(data.portfolio)setPortfolio(data.portfolio);if(Array.isArray(data.saved))setSaved(data.saved);if(data.portfolio)restored=gameFromPortfolio(data.portfolio,stocksRef.current);}
-  if(restored){const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setProfileInput(restored.profileName);if(!restored.profileName)setModal("profile");}else setModal("profile");
+  if(restored){applyOfflineBusinessEarnings(restored,restored.lastActiveAt>0?Date.now()-restored.lastActiveAt:0);const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setSaved(restored.watchlist);setProfileInput(restored.profileName);if(!restored.profileName)setModal("profile");}else setModal("profile");
  }catch{setToast("A saved game could not be fully restored. Your current session remains available.");}
  setReady(true);},[]);
  useEffect(()=>{if(!ready)return;try{
   const persisted={...game,market:{...game.market,stocks:Object.fromEntries(stocks.map(stock=>[stock.ticker,stock]))}};
-  localStorage.setItem("invstock-game-v2",JSON.stringify(persisted));
+  persisted.lastActiveAt=Date.now();\n  localStorage.setItem("invstock-game-v2",JSON.stringify(persisted));
   localStorage.setItem("invstock-v2",JSON.stringify({portfolio,saved}));
  }catch{}},[portfolio,saved,ready,game,stocks]);
  useEffect(()=>{const id=window.setInterval(()=>{
@@ -114,7 +114,7 @@ export default function InvStockApp(){
     if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
     const regime=nextGame.market.regime;
     const incomeFactor=(regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1)*DIFFICULTY_RULES[nextGame.settings.difficulty].businessIncome;
-    nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
+    nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);\n    advanceBusinessEconomy(nextGame,1);
     nextGame.market.minute+=1;
     if(nextGame.market.minute>=MARKET_OPEN_MINUTE+MARKET_SESSION_MINUTES){
       const previousDay=nextGame.market.day;
