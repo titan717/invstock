@@ -7,7 +7,7 @@ import { advanceMarket, createMarket, sectors, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, initialPortfolio, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
-import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, hydrateGameState, migrateLegacySave, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
 import { formatMoney, formatCompactMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
@@ -108,12 +108,12 @@ export default function InvStockApp(){
   let nextStocks=stocksRef.current;
   for(let step=0;step<speed;step++){
     const marketSeed=nextGame.prngSeed>>>0;
-    nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic");
-    nextGame.cryptoMarket=advanceCryptoMarket(nextGame.cryptoMarket,(marketSeed^0x9e3779b9)>>>0);
+    nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic",DIFFICULTY_RULES[nextGame.settings.difficulty].marketVolatility);
+    nextGame.cryptoMarket=advanceCryptoMarket(nextGame.cryptoMarket,(marketSeed^0x9e3779b9)>>>0,DIFFICULTY_RULES[nextGame.settings.difficulty].marketVolatility);
     nextGame.prngSeed=(marketSeed*1664525+1013904223)>>>0;
     if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
     const regime=nextGame.market.regime;
-    const incomeFactor=regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1;
+    const incomeFactor=(regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1)*DIFFICULTY_RULES[nextGame.settings.difficulty].businessIncome;
     nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
     nextGame.market.minute+=1;
     if(nextGame.market.minute>=MARKET_OPEN_MINUTE+MARKET_SESSION_MINUTES){
