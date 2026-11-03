@@ -97,7 +97,8 @@ export default function InvStockApp(){
  setReady(true);},[]);
  useEffect(()=>{if(!ready)return;try{
   const persisted={...game,market:{...game.market,stocks:Object.fromEntries(stocks.map(stock=>[stock.ticker,stock]))}};
-  persisted.lastActiveAt=Date.now();\n  localStorage.setItem("invstock-game-v2",JSON.stringify(persisted));
+  persisted.lastActiveAt=Date.now();
+  localStorage.setItem("invstock-game-v2",JSON.stringify(persisted));
   localStorage.setItem("invstock-v2",JSON.stringify({portfolio,saved}));
  }catch{}},[portfolio,saved,ready,game,stocks]);
  useEffect(()=>{const id=window.setInterval(()=>{
@@ -114,7 +115,8 @@ export default function InvStockApp(){
     if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
     const regime=nextGame.market.regime;
     const incomeFactor=(regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1)*DIFFICULTY_RULES[nextGame.settings.difficulty].businessIncome;
-    nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);\n    advanceBusinessEconomy(nextGame,1);
+    nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
+    advanceBusinessEconomy(nextGame,1);
     nextGame.market.minute+=1;
     if(nextGame.market.minute>=MARKET_OPEN_MINUTE+MARKET_SESSION_MINUTES){
       const previousDay=nextGame.market.day;
