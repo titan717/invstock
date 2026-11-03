@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateNetWorth, createGameState, cryptoTradeAction, hydrateGameState } from "@/lib/game-engine";
+import { calculateNetWorth, createGameState, cryptoTradeAction, hydrateGameState, buildingAction, advanceGameDay } from "@/lib/game-engine";
 import { createMarket } from "@/lib/market";
 
 describe("financial empire game state", () => {
@@ -29,7 +29,7 @@ describe("financial empire game state", () => {
     expect(calculateNetWorth(state, createMarket())).toBeCloseTo(state.cash + btcPrice * 0.001);
   });
 
-  it("rejects an invalid crypto symbol without changing cash", () => {
+  it("applies selected difficulty to property costs and daily loan interest", () => {\n    const state = createGameState();\n    state.settings.difficulty = "hard";\n    state.cash = 5000;\n    state.loan = 1000;\n    expect(buildingAction(state, createMarket(), "buy", "Coffee Cafe").ok).toBe(true);\n    expect(state.buildings[0].cost).toBeCloseTo(1800 * 1.15);\n    const previousLoan = state.loan;\n    advanceGameDay(state, createMarket());\n    expect(state.loan).toBeGreaterThan(previousLoan);\n  });\n\n  it("rejects an invalid crypto symbol without changing cash", () => {
     const state = createGameState();
     const cash = state.cash;
     expect(cryptoTradeAction(state, "NOPE", "buy", 1).ok).toBe(false);
