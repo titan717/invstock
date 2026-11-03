@@ -4,25 +4,37 @@ import { useState } from "react";
 import { ACHIEVEMENTS, BUILDING_CATALOG, calculateNetWorth, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import type { Stock } from "@/lib/market";
 import { CURRENCIES, formatCompactMoney, formatMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
+import { BUSINESS_CATALOG, EMPLOYEE_ROLES, calculateBusinessEconomics, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 
 type BankAction="deposit"|"withdraw"|"borrow"|"repay";
 type BuildingAction="buy"|"upgrade"|"sell";
-type Panel="Bank"|"Crypto"|"Buildings"|"Achievements"|"Settings";
+type Panel="Bank"|"Crypto"|"Businesses"|"Buildings"|"Achievements"|"Settings";
 type Props={
   state:GameState;stocks:Stock[];
   onBank:(action:BankAction,amount:number)=>void;
   onBuilding:(action:BuildingAction,idOrName:string)=>void;
   onCryptoTrade:(symbol:string,side:"buy"|"sell",quantity:number)=>void;
+  onBusinessBuy:(definitionId:string,city:string)=>void;
+  onBusinessHire:(businessId:string,role:EmployeeRole,name:string)=>void;
+  onBusinessFire:(businessId:string,employeeId:string)=>void;
+  onBusinessUpgrade:(businessId:string)=>void;
+  onBusinessStrategy:(businessId:string,strategy:BusinessStrategy)=>void;
+  onBusinessRelocate:(businessId:string,city:string)=>void;
+  onBusinessSell:(businessId:string)=>void;
   onSpeed:(speed:number)=>void;
   onSetting:(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>void;
   onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
 };
 
 
-export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
   const [panel,setPanel]=useState<Panel>("Bank");
   const [amount,setAmount]=useState("100");
   const [cryptoAmount,setCryptoAmount]=useState("0.01");
+  const [businessCity,setBusinessCity]=useState("Bengaluru");
+  const [employeeName,setEmployeeName]=useState("");
+  const [employeeRole,setEmployeeRole]=useState<EmployeeRole>("worker");
+  const [relocationCity,setRelocationCity]=useState("Mumbai");
   const [saveText,setSaveText]=useState("");
   const [confirmReset,setConfirmReset]=useState(false);
   const money=(value:number)=>formatMoney(value,state.settings.currency);
@@ -30,7 +42,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
   const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*DIFFICULTY_RULES[state.settings.difficulty].creditLimit-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
-      {(["Bank","Crypto","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
+      {(["Bank","Crypto","Businesses","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
     </div>
     {panel==="Bank"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Cash balance</small><b>{compactMoney(state.cash)}</b></div><div><small>Savings balance</small><b>{compactMoney(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{compactMoney(state.loan)}</b></div><div><small>Available credit</small><b>{compactMoney(availableCredit)}</b></div></div>
@@ -52,6 +64,23 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
       <input id="crypto-quantity" className="game-amount-input" type="number" min="0.000001" step="any" value={cryptoAmount} onChange={e=>setCryptoAmount(e.target.value)}/>
       <p className="game-muted">Simulated crypto market · prices are game-generated, not live exchange quotes. Orders use your shared cash balance and a simulated 0.10% fee.</p>
       <div className="game-activity">{state.cryptoMarket.map(asset=>{const holding=state.cryptoHoldings[asset.symbol];const value=(holding?.quantity??0)*asset.price;return <div key={asset.symbol} className="game-crypto-row"><span><b>{asset.symbol}</b><small>{asset.name} · {money(asset.price)}</small></span><span><b>{compactMoney(value)}</b><small>{holding?holding.quantity.toFixed(6)+" owned":"Not owned"}</small></span><button onClick={()=>onCryptoTrade(asset.symbol,"buy",Number(cryptoAmount))}>Buy</button><button className="danger-outline" onClick={()=>onCryptoTrade(asset.symbol,"sell",Number(cryptoAmount))} disabled={!holding||holding.quantity<=0}>Sell</button></div>;})}</div>
+    </div>}
+    {panel==="Businesses"&&<div className="game-panel-content">
+      <div className="game-balance-grid"><div><small>Companies owned</small><b>{state.businesses.length}</b></div><div><small>Business value</small><b>{compactMoney(state.businesses.reduce((sum,business)=>sum+business.value,0))}</b></div><div><small>Daily operating profit</small><b className="gain">{compactMoney(state.businesses.reduce((sum,business)=>sum+calculateBusinessEconomics(business,state.settings.difficulty).dailyProfit,0))}</b></div></div>
+      <h3>Your companies</h3>
+      {state.businesses.length?state.businesses.map(business=>{const economics=calculateBusinessEconomics(business,state.settings.difficulty);return <div className="game-business-card" key={business.id}>
+        <div className="game-business-heading"><div><b>{business.name}</b><small>{business.industry.toUpperCase()} · {business.city} · Level {business.level}</small></div><b>{money(business.value)}</b></div>
+        <div className="game-business-metrics"><span><small>Daily revenue</small><b>{money(economics.dailyRevenue)}</b></span><span><small>Daily expenses</small><b>{money(economics.dailyOperatingCosts+economics.dailyPayroll)}</b></span><span><small>Daily profit</small><b className={economics.dailyProfit>=0?"gain":"loss"}>{money(economics.dailyProfit)}</b></span><span><small>Employees</small><b>{business.employees.length}/20</b></span></div>
+        <label className="game-field-label" htmlFor={"strategy-"+business.id}>Business strategy</label>
+        <select id={"strategy-"+business.id} className="game-amount-input" value={business.strategy} onChange={e=>onBusinessStrategy(business.id,e.target.value as BusinessStrategy)}><option value="value">Value pricing · higher demand</option><option value="balanced">Balanced</option><option value="premium">Premium pricing · lower demand</option></select>
+        <div className="game-employee-list">{business.employees.map(employee=><div className="game-employee-row" key={employee.id}><span><b>{employee.name}</b><small>{EMPLOYEE_ROLES[employee.role].label} · {money(employee.salaryPerDay)}/day</small></span><button className="danger-outline" onClick={()=>onBusinessFire(business.id,employee.id)}>Dismiss</button></div>)}</div>
+        <div className="game-business-hire"><input aria-label={"Employee name for "+business.name} placeholder="Employee name" value={employeeName} onChange={e=>setEmployeeName(e.target.value)}/><select aria-label={"Employee role for "+business.name} value={employeeRole} onChange={e=>setEmployeeRole(e.target.value as EmployeeRole)}>{Object.entries(EMPLOYEE_ROLES).map(([role,definition])=><option key={role} value={role}>{definition.label} · {money(definition.salaryPerDay)}/day</option>)}</select><button onClick={()=>{onBusinessHire(business.id,employeeRole,employeeName);setEmployeeName("");}}>Hire</button></div>
+        <div className="game-business-actions"><button onClick={()=>onBusinessUpgrade(business.id)}>Upgrade</button><input aria-label={"Relocation city for "+business.name} value={relocationCity} onChange={e=>setRelocationCity(e.target.value)} placeholder="New city"/><button onClick={()=>onBusinessRelocate(business.id,relocationCity)}>Relocate</button><button className="danger-outline" onClick={()=>onBusinessSell(business.id)}>Sell company</button></div>
+      </div>;}):<p className="game-muted">You do not own a company yet. Choose an industry below to start your first business.</p>}
+      <h3>Start a business</h3>
+      <label className="game-field-label" htmlFor="business-city">Business city</label>
+      <input id="business-city" className="game-amount-input" value={businessCity} onChange={e=>setBusinessCity(e.target.value)} placeholder="Enter a city"/>
+      {BUSINESS_CATALOG.map(definition=><div className="game-business-market" key={definition.id}><span><b>{definition.name}</b><small>{definition.description}</small></span><b>{money(definition.baseCost)}</b><button onClick={()=>onBusinessBuy(definition.id,businessCity)}>Acquire</button></div>)}
     </div>}
     {panel==="Buildings"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Property value</small><b>{money(state.buildings.reduce((sum,item)=>sum+item.value,0))}</b></div><div><small>Income per minute</small><b className="gain">{money(state.buildings.reduce((sum,item)=>sum+item.income,0))}</b></div></div>
