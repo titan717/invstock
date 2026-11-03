@@ -7,26 +7,26 @@ import { CURRENCIES, formatCompactMoney, formatMoney, type CurrencyCode, type Di
 
 type BankAction="deposit"|"withdraw"|"borrow"|"repay";
 type BuildingAction="buy"|"upgrade"|"sell";
-type Panel="Bank"|"Buildings"|"Achievements"|"Settings";
+type Panel="Bank"|"Crypto"|"Buildings"|"Achievements"|"Settings";
 type Props={
   state:GameState;stocks:Stock[];
   onBank:(action:BankAction,amount:number)=>void;
-  onBuilding:(action:BuildingAction,idOrName:string)=>void;
+  onBuilding:(action:BuildingAction,idOrName:string)=>void;\n  onCryptoTrade:(symbol:string,side:"buy"|"sell",quantity:number)=>void;
   onSpeed:(speed:number)=>void;
   onSetting:(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>void;
   onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
 };
 
 
-export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
   const [panel,setPanel]=useState<Panel>("Bank");
-  const [amount,setAmount]=useState("100");
+  const [amount,setAmount]=useState("100");\n  const [cryptoAmount,setCryptoAmount]=useState("0.01");
   const [saveText,setSaveText]=useState("");
   const [confirmReset,setConfirmReset]=useState(false);
   const money=(value:number)=>formatMoney(value,state.settings.currency);\n  const compactMoney=(value:number)=>formatCompactMoney(value,state.settings.currency);\n  const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*.35-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
-      {(["Bank","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
+      {(["Bank","Crypto","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
     </div>
     {panel==="Bank"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Cash balance</small><b>{compactMoney(state.cash)}</b></div><div><small>Savings balance</small><b>{compactMoney(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{compactMoney(state.loan)}</b></div><div><small>Available credit</small><b>{compactMoney(availableCredit)}</b></div></div>
@@ -42,7 +42,7 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onSpeed,onSett
       <h3>Recent activity</h3>
       <div className="game-activity">{state.activity.slice(0,12).map((item,index)=><div key={index}><span>{item.type==="deposit"?"Savings deposit":item.type==="withdraw"?"Savings withdrawal":item.type==="loan"?"Loan drawn":item.type==="repayment"?"Loan repayment":item.type==="dividend"?"Dividend":item.type==="buy"?"Stock purchase":item.type==="sell"?"Stock sale":item.type}</span><b>{money(item.amount??(item.qty??0)*(item.price??0))}</b></div>)}</div>
     </div>}
-    {panel==="Buildings"&&<div className="game-panel-content">
+    {panel==="Crypto"&&<div className="game-panel-content">\n      <div className="game-balance-grid"><div><small>Crypto holdings</small><b>{Object.keys(state.cryptoHoldings).length}</b></div><div><small>Crypto portfolio value</small><b>{compactMoney(Object.entries(state.cryptoHoldings).reduce((sum,[symbol,holding])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*holding.quantity,0))}</b></div></div>\n      <label className="game-field-label" htmlFor="crypto-quantity">Order quantity (crypto units)</label>\n      <input id="crypto-quantity" className="game-amount-input" type="number" min="0.000001" step="any" value={cryptoAmount} onChange={e=>setCryptoAmount(e.target.value)}/>\n      <p className="game-muted">Simulated crypto market · prices are game-generated, not live exchange quotes. Orders use your shared cash balance and a simulated 0.10% fee.</p>\n      <div className="game-activity">{state.cryptoMarket.map(asset=>{const holding=state.cryptoHoldings[asset.symbol];const value=(holding?.quantity??0)*asset.price;return <div key={asset.symbol} className="game-crypto-row"><span><b>{asset.symbol}</b><small>{asset.name} · {money(asset.price)}</small></span><span><b>{compactMoney(value)}</b><small>{holding?holding.quantity.toFixed(6)+" owned":"Not owned"}</small></span><button onClick={()=>onCryptoTrade(asset.symbol,"buy",Number(cryptoAmount))}>Buy</button><button className="danger-outline" onClick={()=>onCryptoTrade(asset.symbol,"sell",Number(cryptoAmount))} disabled={!holding||holding.quantity<=0}>Sell</button></div>;})}</div>\n    </div>}\n    {panel==="Buildings"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Property value</small><b>{money(state.buildings.reduce((sum,item)=>sum+item.value,0))}</b></div><div><small>Income per minute</small><b className="gain">{money(state.buildings.reduce((sum,item)=>sum+item.income,0))}</b></div></div>
       <h3>Your properties</h3>
       {state.buildings.length?state.buildings.map(item=><div className="game-property" key={item.id}><span className="game-property-icon">{item.icon}</span><div><b>{item.name}</b><small>Level {item.level} · {money(item.income)}/min · Value {money(item.value)}</small></div><button onClick={()=>onBuilding("upgrade",item.id)}>Upgrade {item.name}</button><button className="danger-outline" onClick={()=>onBuilding("sell",item.id)}>Sell</button></div>):<p className="game-muted">You have not acquired any properties yet.</p>}
