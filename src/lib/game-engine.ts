@@ -309,7 +309,7 @@ export function advanceBusinessEconomy(state:GameState,minutes=1):number {
 
 export const OFFLINE_EARNINGS_CAP_MINUTES=480;
 export function applyOfflineBusinessEarnings(state:GameState,elapsedMs:number):{earned:number;minutes:number} {
-  const elapsedMinutes=Number.isFinite(elapsedMs)?Math.max(0,elapsedMs/60000):0;
+  const elapsedMinutes=state.lastActiveAt>0&&Number.isFinite(elapsedMs)?Math.max(0,elapsedMs/60000):0;
   const minutes=Math.min(OFFLINE_EARNINGS_CAP_MINUTES,elapsedMinutes);
   const earned=advanceBusinessEconomy(state,minutes);
   state.lastActiveAt=Date.now();
