@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   BUSINESS_CATALOG,
   calculateBusinessEconomics,
+  fireEmployee,
   hireEmployee,
   purchaseBusiness,
   setBusinessStrategy,
   simulateBusinessMinutes,
   upgradeBusiness,
-  type Business,
 } from "@/lib/business-engine";
 
 describe("business empire management", () => {
@@ -36,8 +36,9 @@ describe("business empire management", () => {
     if (!hired.ok) return;
     expect(hired.business.employees[0].name).toBe("Asha");
     expect(hired.business.employees[0].salaryPerDay).toBeGreaterThan(0);
-    const fired = (awaitFire => awaitFire)(hired.business);
-    expect(fired.employees).toHaveLength(0);
+    const fired = fireEmployee(hired.business, "emp-1");
+    expect(fired.ok).toBe(true);
+    if (fired.ok) expect(fired.business.employees).toHaveLength(0);
   });
 
   it("changes pricing strategy and calculates revenue, payroll and operating profit", () => {
@@ -86,4 +87,4 @@ function requireBusinessModule() {
     if (employees.length === business.employees.length) return { ok: false as const, reason: "Employee not found." };
     return { ok: true as const, business: { ...business, employees } };
   }};
-}
+}\n
