@@ -160,7 +160,7 @@ export function simulateBusinessMinutes(business: Business, minutes: number, dif
       ...business,
       totalRevenue: business.totalRevenue + revenue,
       totalProfit: business.totalProfit + profit,
-      value: Math.max(0, business.value + Math.max(-business.value * 0.02, profit * 0.015)),
+      value: business.value,
     },
     revenue,
     profit,
