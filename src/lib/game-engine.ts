@@ -1,7 +1,7 @@
 import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
-import { purchaseBusiness, hireEmployee, fireEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessIndustry, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
+import { purchaseBusiness, hireEmployee, fireEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -53,7 +53,9 @@ export type GameState = {
   eventsNextAt: number;
   orphanedPositions: Record<string, GameHolding>;
   cryptoHoldings: Record<string, CryptoHolding>;
-  cryptoMarket: CryptoAsset[];\n  businesses: Business[];\n  lastActiveAt: number;
+  cryptoMarket: CryptoAsset[];
+  businesses: Business[];
+  lastActiveAt: number;
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -119,7 +121,9 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.cryptoHoldings=object(source.cryptoHoldings) as Record<string,CryptoHolding>;
   state.cryptoMarket=Array.isArray(source.cryptoMarket)?source.cryptoMarket:state.cryptoMarket;
   state.settings.currency=["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD";
-  state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";\n  state.businesses=Array.isArray(source.businesses)?source.businesses:[];\n  state.lastActiveAt=number(source.lastActiveAt);
+  state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";
+  state.businesses=Array.isArray(source.businesses)?source.businesses:[];
+  state.lastActiveAt=number(source.lastActiveAt);
   return state;
 }
 
@@ -174,7 +178,8 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const prices=new Map(stocks.map(s=>[s.ticker,s.price]));
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
-  const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);\n  return state.cash+state.savings+positions+cryptoValue+businessValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
+  return state.cash+state.savings+positions+cryptoValue+businessValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
@@ -310,7 +315,8 @@ export function applyOfflineBusinessEarnings(state:GameState,elapsedMs:number):{
   state.lastActiveAt=Date.now();
   return {earned,minutes};
 }
-\nexport function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState;market:Stock[];events:GameNews[]} {
+
+export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState;market:Stock[];events:GameNews[]} {
   const day=state.market.day+1;
   if(state.lastDividendDay<day){
     for(const stock of stocks){const holding=state.holdings[stock.ticker];if(holding&&stock.dividend>0){const payment=stock.price*stock.dividend/365*holding.quantity;state.cash+=payment;state.activity.unshift({type:"dividend",ticker:stock.ticker,amount:payment,day});}}
