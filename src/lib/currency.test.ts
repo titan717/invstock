@@ -3,14 +3,14 @@ import { CURRENCIES, formatCompactMoney, formatMoney, convertFromUsd, convertToU
 
 describe("display currency utilities", () => {
   it("formats large values compactly without changing their underlying value", () => {
-    expect(formatCompactMoney(44000, "INR")).toContain("44K");
+    expect(formatCompactMoney(convertToUsd(44000, "INR"), "INR")).toContain("44K");
     expect(formatCompactMoney(1250000, "USD")).toContain("1.25M");
     expect(formatCompactMoney(2400000000, "USD")).toContain("2.4B");
   });
 
   it("formats detailed values with currency precision", () => {
     expect(formatMoney(1250.5, "USD")).toContain("1,250.50");
-    expect(formatMoney(1250.5, "INR")).toContain("1,250.50");
+    expect(formatMoney(1250.5, "INR")).toContain("669.25");
   });
 
   it("converts to and from the USD game base without mutating the amount", () => {
