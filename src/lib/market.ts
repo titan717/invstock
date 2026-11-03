@@ -73,11 +73,11 @@ export function createMarket(seed = 731991): Stock[] {
   });
 }
 
-export function advanceMarket(stocks: Stock[], seed = Date.now(), regime:"Bull"|"Bear"|"Sideways"|"Panic"="Sideways"): Stock[] {
+export function advanceMarket(stocks: Stock[], seed = Date.now(), regime:"Bull"|"Bear"|"Sideways"|"Panic"="Sideways", volatilityMultiplier=1): Stock[] {
   let state = seed >>> 0;
   const random = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 4294967296; };
   const regimeDrift={Bull:.00016,Bear:-.00018,Sideways:0,Panic:-.0008}[regime];
-  const regimeVol={Bull:.85,Bear:1.25,Sideways:1,Panic:2.5}[regime];
+  const regimeVol={Bull:.85,Bear:1.25,Sideways:1,Panic:2.5}[regime]*Math.max(.25,Math.min(3,volatilityMultiplier));
   const sectorFactors=new Map<string,number>();
   for(const stock of stocks)if(!sectorFactors.has(stock.sector))sectorFactors.set(stock.sector,(random()-.5)*.0007);
   return stocks.map(stock => {
