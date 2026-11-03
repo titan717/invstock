@@ -1,3 +1,5 @@
+import type { Difficulty } from "@/lib/currency";
+
 export type PropertyType = "apartment" | "villa" | "office" | "retail" | "hotel" | "warehouse";
 export type PropertyCity = { name: string; country: string; priceIndex: number; rentIndex: number; demand: number };
 
@@ -53,12 +55,12 @@ export const PROPERTY_CATALOG: PropertyListing[] = [
   { id: "logistics-warehouse", name: "Logistics Warehouse", type: "warehouse", basePrice: 105000, baseMonthlyRent: 1650, maintenanceRate: 0.01, appreciationRate: 0.038, description: "Industrial space for storage and distribution." },
 ];
 
-export function purchaseProperty(cash: number, listingId: string, cityName: string, id: string): PropertyActionResult<RealEstateProperty> {
+export function purchaseProperty(cash: number, listingId: string, cityName: string, id: string, priceMultiplier = 1): PropertyActionResult<RealEstateProperty> {
   const listing = PROPERTY_CATALOG.find(item => item.id === listingId);
   const city = PROPERTY_CITIES.find(item => item.name.toLowerCase() === cityName.trim().toLowerCase());
   if (!listing) return { ok: false, reason: "Property listing not found.", cash };
   if (!city) return { ok: false, reason: "Choose a supported property market.", cash };
-  const cost = Math.round(listing.basePrice * city.priceIndex);
+  const cost = Math.round(listing.basePrice * city.priceIndex * Math.max(0.5, Math.min(2, priceMultiplier)));
   if (!Number.isFinite(cash) || cash < cost) return { ok: false, reason: "Not enough cash to purchase this property.", cash };
   if (!id.trim()) return { ok: false, reason: "Invalid property identity.", cash };
   return {
@@ -83,7 +85,7 @@ export function purchaseProperty(cash: number, listingId: string, cityName: stri
   };
 }
 
-export function calculatePropertyEconomics(property: RealEstateProperty, demandFactor = 1) {
+export function calculatePropertyEconomics(property: RealEstateProperty, demandFactor = 1, difficulty: Difficulty = "normal") {
   const city = PROPERTY_CITIES.find(item => item.name === property.city);
   const demand = Math.max(0.2, Math.min(1.5, (city?.demand ?? 1) * demandFactor));
   const occupancy = Math.max(0, Math.min(1, property.occupancy));
@@ -106,9 +108,9 @@ export function sellProperty(property: RealEstateProperty) {
   return { property, proceeds: property.value * 0.92 };
 }
 
-export function simulatePropertyMinutes(property: RealEstateProperty, minutes: number, demandFactor = 1) {
+export function simulatePropertyMinutes(property: RealEstateProperty, minutes: number, demandFactor = 1, difficulty: Difficulty = "normal") {
   const elapsed = Number.isFinite(minutes) ? Math.max(0, Math.min(10080, minutes)) : 0;
-  const economics = calculatePropertyEconomics(property, demandFactor);
+  const economics = calculatePropertyEconomics(property, demandFactor, difficulty);
   const grossRent = economics.monthlyGrossRent / 30 * elapsed / 390;
   const maintenance = economics.monthlyMaintenance / 30 * elapsed / 390;
   const netIncome = grossRent - maintenance;
