@@ -191,8 +191,9 @@ export function buildingAction(state:GameState,_stocks:Stock[],action:"buy"|"upg
   if(action==="buy"){
     const definition=BUILDING_CATALOG.find(item=>item.name===building);
     if(!definition)return result(state,false,"Unknown property.");
-    if(state.cash<definition.cost)return result(state,false,"Not enough cash.");
-    state.cash-=definition.cost;
+    const purchaseCost=definition.cost*DIFFICULTY_RULES[state.settings.difficulty].buildingCost;
+    if(state.cash<purchaseCost)return result(state,false,"Not enough cash.");
+    state.cash-=purchaseCost;
     state.buildings.push({id:building.toLowerCase().replace(/[^a-z0-9]+/g,"-")+"-"+(state.buildings.length+1),...definition,cost:purchaseCost,value:purchaseCost,level:1});
     if(!state.achievements.includes("Landlord"))state.achievements.push("Landlord");
     return result(state,true,definition.name+" acquired.");
@@ -228,8 +229,9 @@ export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState
     for(const stock of stocks){const holding=state.holdings[stock.ticker];if(holding&&stock.dividend>0){const payment=stock.price*stock.dividend/365*holding.quantity;state.cash+=payment;state.activity.unshift({type:"dividend",ticker:stock.ticker,amount:payment,day});}}
     state.lastDividendDay=day;
   }
-  state.savings*=1+.035/365;
-  state.loan*=1+.12/365;
+  const difficulty=DIFFICULTY_RULES[state.settings.difficulty];
+  state.savings*=1+difficulty.savingsApy/365;
+  state.loan*=1+difficulty.loanApr/365;
   if(state.loan>0){const minimum=state.loan*.02;if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;}else{state.loan*=1+difficulty.missedPaymentPenalty;}}
   state.market.day=day;state.lastBankDay=day;
   if(state.loan>calculateNetWorth(state,stocks)+state.loan&&state.loan>0){
