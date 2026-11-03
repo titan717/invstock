@@ -317,7 +317,7 @@ export function sellBusinessAction(state:GameState,businessId:string):GameAction
 
 export function purchasePropertyAction(state:GameState,listingId:string,city:string):GameActionResult {
   const id="property-"+Date.now()+"-"+(state.realEstate.length+1);
-  const purchase=purchaseProperty(state.cash,listingId,city,id);
+  const purchase=purchaseProperty(state.cash,listingId,city,id,DIFFICULTY_RULES[state.settings.difficulty].buildingCost);
   if(!purchase.ok)return result(state,false,purchase.reason);
   state.cash=purchase.cash??state.cash;
   state.realEstate.push(purchase.property);
@@ -355,7 +355,7 @@ export function advanceBusinessEconomy(state:GameState,minutes=1):number {
     return result.business;
   });
   state.realEstate=state.realEstate.map(property=>{
-    const result=simulatePropertyMinutes(property,minutes);
+    const result=simulatePropertyMinutes(property,minutes,1,state.settings.difficulty);
     totalProfit+=result.netIncome;
     return result.property;
   });
