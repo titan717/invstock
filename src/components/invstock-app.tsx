@@ -15,7 +15,7 @@ import { advanceCryptoMarket } from "@/lib/crypto";
 
 type Tab = "Home" | "Discovery" | "Options" | "News" | "Account";
 type Modal = "trade" | "news" | "profile" | null;
-const money = (n:number) => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n);
+const money = (n:number,currency:CurrencyCode="USD") => formatMoney(n,currency);
 const signed = (n:number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}%`;
 function portfolioFromGame(state:GameState):Portfolio {
  return {cash:state.cash,holdings:Object.fromEntries(Object.entries(state.holdings)),realizedPnl:state.realizedPnl,trades:state.trades};
