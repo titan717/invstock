@@ -44,10 +44,10 @@ export function createCryptoMarket(seed = 99173): CryptoAsset[] {
   });
 }
 
-export function advanceCryptoMarket(market: CryptoAsset[], seed: number): CryptoAsset[] {
+export function advanceCryptoMarket(market: CryptoAsset[], seed: number, volatilityMultiplier=1): CryptoAsset[] {
   const random = randomFor(seed);
   return market.map(asset => {
-    const shock = (random() - 0.5) * asset.volatility * 0.045;
+    const shock = (random() - 0.5) * asset.volatility * 0.045 * Math.max(.25, Math.min(3, volatilityMultiplier));
     const rawMove = asset.drift + shock;
     const boundedMove = Math.max(-0.12, Math.min(0.12, rawMove));
     const price = Math.max(0.000001, asset.price * (1 + boundedMove));
