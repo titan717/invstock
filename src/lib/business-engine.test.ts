@@ -5,6 +5,7 @@ import {
   fireEmployee,
   hireEmployee,
   purchaseBusiness,
+  promoteEmployee,
   setBusinessStrategy,
   simulateBusinessMinutes,
   upgradeBusiness,
@@ -36,6 +37,9 @@ describe("business empire management", () => {
     if (!hired.ok) return;
     expect(hired.business.employees[0].name).toBe("Asha");
     expect(hired.business.employees[0].salaryPerDay).toBeGreaterThan(0);
+    const promoted = promoteEmployee(hired.business, "emp-1");
+    expect(promoted.ok).toBe(true);
+    if (promoted.ok) expect(promoted.business.employees[0].role).toBe("specialist");
     const fired = fireEmployee(hired.business, "emp-1");
     expect(fired.ok).toBe(true);
     if (fired.ok) expect(fired.business.employees).toHaveLength(0);
