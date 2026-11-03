@@ -10,7 +10,7 @@ describe("full simulator account panels", () => {
   it("submits bank actions using the entered amount", () => {
     const state=createGameState();state.cash=1000;state.savings=250;
     const onBank=vi.fn();
-    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={onBank} onBuilding={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={onBank} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Bank"}));
     fireEvent.change(screen.getByLabelText("Amount in USD"),{target:{value:"125"}});
     fireEvent.click(screen.getByRole("button",{name:"Deposit"}));
@@ -21,7 +21,7 @@ describe("full simulator account panels", () => {
     const state=createGameState();state.cash=5000;
     state.buildings=[{id:"cafe-1",name:"Coffee Cafe",icon:"☕",cost:1800,value:2200,income:1.35,level:2}];
     const onBuilding=vi.fn();
-    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={onBuilding} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={onBuilding} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Buildings"}));
     fireEvent.click(screen.getByRole("button",{name:/Upgrade Coffee Cafe/}));
     expect(onBuilding).toHaveBeenCalledWith("upgrade","cafe-1");
@@ -32,7 +32,7 @@ describe("full simulator account panels", () => {
   it("shows achievement unlock status and sends simulator speed changes", () => {
     const state=createGameState();state.achievements=["First Profit"];
     const onSpeed=vi.fn();
-    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onSpeed={onSpeed} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={onSpeed} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Achievements"}));
     expect(screen.getByText("First Profit")).toBeTruthy();
     expect(screen.getByText("Unlocked")).toBeTruthy();
@@ -41,9 +41,9 @@ describe("full simulator account panels", () => {
     expect(onSpeed).toHaveBeenCalledWith(5);
   });
 
-  it("requires an explicit in-app confirmation before resetting progress", () => {
+  it("shows crypto markets and forwards fractional buy and sell orders", () => {\n    const onCryptoTrade=vi.fn();\n    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={onCryptoTrade} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);\n    fireEvent.click(screen.getByRole("button",{name:"Crypto"}));\n    fireEvent.change(screen.getByLabelText("Order quantity (crypto units)"),{target:{value:"0.025"}});\n    fireEvent.click(screen.getAllByRole("button",{name:"Buy"})[0]);\n    expect(onCryptoTrade).toHaveBeenCalledWith("BTC","buy",0.025);\n  });\n\n  it("saves currency and difficulty preferences from Settings", () => {\n    const onSetting=vi.fn();\n    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={onSetting} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);\n    fireEvent.click(screen.getByRole("button",{name:"Settings"}));\n    fireEvent.change(screen.getByLabelText("Choose your currency"),{target:{value:"INR"}});\n    fireEvent.change(screen.getByLabelText("Economy difficulty"),{target:{value:"hard"}});\n    expect(onSetting).toHaveBeenCalledWith("currency","INR");\n    expect(onSetting).toHaveBeenCalledWith("difficulty","hard");\n  });\n\n  it("requires an explicit in-app confirmation before resetting progress", () => {
     const onReset=vi.fn();
-    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={onReset}/>);
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={onReset}/>);
     fireEvent.click(screen.getByRole("button",{name:"Settings"}));
     fireEvent.click(screen.getByRole("button",{name:"Reset simulator"}));
     expect(onReset).not.toHaveBeenCalled();
