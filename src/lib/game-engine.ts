@@ -263,7 +263,8 @@ export function promoteBusinessEmployeeAction(state:GameState,businessId:string,
   state.activity=state.activity.slice(0,100);
   return result(state,true,"Employee promoted.");
 }
-\nexport function fireBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
+
+export function fireBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
   const index=state.businesses.findIndex(item=>item.id===businessId);
   if(index<0)return result(state,false,"Business not found.");
   const fired=fireEmployee(state.businesses[index],employeeId);
