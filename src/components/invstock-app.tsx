@@ -79,7 +79,9 @@ export default function InvStockApp(){
  const [profileInput,setProfileInput]=useState("");
  const [toast,setToast]=useState("");
  const [saved,setSaved]=useState<string[]>(["MSFT","META","GOOGL","COIN","SHOP"]);
- const [ready,setReady]=useState(false);\n const money=(value:number)=>formatMoney(value,game.settings.currency);\n const fmtCompact=(value:number)=>formatCompactMoney(value,game.settings.currency);
+ const [ready,setReady]=useState(false);
+ const money=(value:number)=>formatMoney(value,game.settings.currency);
+ const fmtCompact=(value:number)=>formatCompactMoney(value,game.settings.currency);
 
  useEffect(()=>{try{
   const legacy=localStorage.getItem("ticker_game_v1");
@@ -106,7 +108,8 @@ export default function InvStockApp(){
   let nextStocks=stocksRef.current;
   for(let step=0;step<speed;step++){
     const marketSeed=nextGame.prngSeed>>>0;
-    nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic");\n    nextGame.cryptoMarket=advanceCryptoMarket(nextGame.cryptoMarket,(marketSeed^0x9e3779b9)>>>0);
+    nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic");
+    nextGame.cryptoMarket=advanceCryptoMarket(nextGame.cryptoMarket,(marketSeed^0x9e3779b9)>>>0);
     nextGame.prngSeed=(marketSeed*1664525+1013904223)>>>0;
     if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
     const regime=nextGame.market.regime;
@@ -176,7 +179,8 @@ const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:sto
  const claimChallengeReward=()=>{const next=structuredClone(gameRef.current);const result=claimWeeklyChallenge(next,stocksRef.current);if(!result.ok){setToast(result.reason??"Challenge reward unavailable.");return;}gameRef.current=next;setGame(next);setPortfolio(portfolioFromGame(next));playUiFeedback(next,1040);setToast(`Weekly challenge reward: ${money(result.reward??0)}`);};
  const performBankAction=(action:"deposit"|"withdraw"|"borrow"|"repay",value:number)=>{const next=structuredClone(gameRef.current);const result=bankAction(next,stocksRef.current,action,value);if(!result.ok){setToast(result.reason);return;}gameRef.current=result.state;setGame(result.state);setPortfolio(portfolioFromGame(result.state));playUiFeedback(result.state,540);setToast(result.message??"Bank transaction complete.");};
  const performBuildingAction=(action:"buy"|"upgrade"|"sell",idOrName:string)=>{const next=structuredClone(gameRef.current);const result=buildingAction(next,stocksRef.current,action,idOrName);if(!result.ok){setToast(result.reason);return;}gameRef.current=result.state;setGame(result.state);setPortfolio(portfolioFromGame(result.state));playUiFeedback(result.state,880);setToast(result.message??"Property updated.");};
- const performCryptoTrade=(symbol:string,side:"buy"|"sell",quantity:number)=>{const next=structuredClone(gameRef.current);const result=cryptoTradeAction(next,symbol,side,quantity);if(!result.ok){setToast(result.reason);return;}gameRef.current=result.state;setGame(result.state);setPortfolio(portfolioFromGame(result.state));playUiFeedback(result.state,side==="buy"?720:460);setToast(result.message??"Crypto order complete.");};\n const changeSpeed=(speed:number)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,speed}};gameRef.current=next;setGame(next);setToast(speed===0?"Simulation paused":`Simulation speed set to ${speed}×`);};
+ const performCryptoTrade=(symbol:string,side:"buy"|"sell",quantity:number)=>{const next=structuredClone(gameRef.current);const result=cryptoTradeAction(next,symbol,side,quantity);if(!result.ok){setToast(result.reason);return;}gameRef.current=result.state;setGame(result.state);setPortfolio(portfolioFromGame(result.state));playUiFeedback(result.state,side==="buy"?720:460);setToast(result.message??"Crypto order complete.");};
+ const changeSpeed=(speed:number)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,speed}};gameRef.current=next;setGame(next);setToast(speed===0?"Simulation paused":`Simulation speed set to ${speed}×`);};
  const saveProfile=()=>{const name=profileInput.trim();if(!name){setToast("Please enter your name to continue.");return;}const next={...gameRef.current,profileName:name};gameRef.current=next;setGame(next);setModal(null);setToast("Welcome to InvStock, "+name+".");};
  const cycleSpeed=()=>{const values=[0,1,2,5,60,390];const current=gameRef.current.settings.speed;changeSpeed(values[(values.indexOf(current)+1)%values.length]);};
  const changeSetting=(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,[key]:value}};gameRef.current=next;setGame(next);};
