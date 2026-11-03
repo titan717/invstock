@@ -34,6 +34,18 @@ describe("business empire integration", () => {
     expect(state.businesses[0].employees).toHaveLength(1);
   });
 
+  it("does not accrue offline income while the simulation is paused", () => {
+    const state = createGameState();
+    state.cash = 25000;
+    purchaseBusinessAction(state, "retail-shop", "Bengaluru");
+    state.lastActiveAt = Date.now() - 60 * 60 * 1000;
+    state.settings.speed = 0;
+    const cashBefore = state.cash;
+    const offline = applyOfflineBusinessEarnings(state, 60 * 60 * 1000);
+    expect(offline.minutes).toBe(0);
+    expect(state.cash).toBe(cashBefore);
+  });
+
   it("caps offline business earnings to eight hours and ignores clock rollback", () => {
     const state = createGameState();
     state.cash = 25000;
