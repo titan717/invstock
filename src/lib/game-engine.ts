@@ -1,6 +1,7 @@
 import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
+import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -53,6 +54,8 @@ export type GameState = {
   orphanedPositions: Record<string, GameHolding>;
   cryptoHoldings: Record<string, CryptoHolding>;
   cryptoMarket: CryptoAsset[];
+  businesses: Business[];
+  lastActiveAt: number;
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -82,7 +85,7 @@ const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed)};
+  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],lastActiveAt:0};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -119,6 +122,8 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.cryptoMarket=Array.isArray(source.cryptoMarket)?source.cryptoMarket:state.cryptoMarket;
   state.settings.currency=["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD";
   state.settings.difficulty=["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal";
+  state.businesses=Array.isArray(source.businesses)?source.businesses:[];
+  state.lastActiveAt=number(source.lastActiveAt);
   return state;
 }
 
@@ -139,7 +144,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
     cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
-    holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,buildings:Array.isArray(source.buildings)?source.buildings:[],
+    holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,businesses:Array.isArray(source.businesses)?source.businesses:[],lastActiveAt:number(source.lastActiveAt),buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
     achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
     settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
@@ -173,7 +178,8 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const prices=new Map(stocks.map(s=>[s.ticker,s.price]));
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
-  return state.cash+state.savings+positions+cryptoValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
+  return state.cash+state.savings+positions+cryptoValue+businessValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
@@ -221,6 +227,109 @@ export function cryptoTradeAction(state:GameState, symbol:string, side:"buy"|"se
   state.activity.unshift({type:side==="buy"?"crypto-buy":"crypto-sell",ticker:symbol,qty:quantity,price:trade.executionPrice,fee:trade.fee,amount:trade.executionPrice*quantity,day:state.market.day});
   state.activity=state.activity.slice(0,100);
   return result(state,true,side==="buy"?"Crypto purchased.":"Crypto sold.");
+}
+
+
+export function purchaseBusinessAction(state:GameState,definitionId:string,city:string):GameActionResult {
+  const id="business-"+(state.businesses.length+1)+"-"+state.market.day;
+  const purchase=purchaseBusiness(state.cash,definitionId,city,id);
+  if(!purchase.ok)return result(state,false,purchase.reason);
+  state.cash=purchase.cash??state.cash;
+  state.businesses.push(purchase.business);
+  state.activity.unshift({type:"business-purchase",amount:purchase.business.value,day:state.market.day});
+  return result(state,true,purchase.business.name+" acquired in "+purchase.business.city+".");
+}
+
+export function hireBusinessEmployeeAction(state:GameState,businessId:string,role:EmployeeRole,name:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const business=state.businesses[index],id=businessId+"-employee-"+(state.activity.length+1);
+  const hired=hireEmployee(business,role,id,name);
+  if(!hired.ok)return result(state,false,hired.reason);
+  state.businesses[index]=hired.business;
+  state.activity.unshift({type:"business-hire",amount:hired.business.employees.find(employee=>employee.id===id)?.salaryPerDay??0,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,name+" hired.");
+}
+
+
+export function promoteBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const promoted=promoteEmployee(state.businesses[index],employeeId);
+  if(!promoted.ok)return result(state,false,promoted.reason);
+  state.businesses[index]=promoted.business;
+  state.activity.unshift({type:"business-promotion",day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Employee promoted.");
+}
+
+export function fireBusinessEmployeeAction(state:GameState,businessId:string,employeeId:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const fired=fireEmployee(state.businesses[index],employeeId);
+  if(!fired.ok)return result(state,false,fired.reason);
+  state.businesses[index]=fired.business;
+  state.activity.unshift({type:"business-fire",day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Employee dismissed.");
+}
+
+export function upgradeBusinessAction(state:GameState,businessId:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const upgraded=upgradeBusiness(state.businesses[index],state.cash);
+  if(!upgraded.ok)return result(state,false,upgraded.reason);
+  state.cash=upgraded.cash??state.cash;
+  state.businesses[index]=upgraded.business;
+  return result(state,true,"Business upgraded.");
+}
+
+export function setBusinessStrategyAction(state:GameState,businessId:string,strategy:BusinessStrategy):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  state.businesses[index]=setBusinessStrategy(state.businesses[index],strategy);
+  return result(state,true,"Business strategy updated.");
+}
+
+export function relocateBusinessAction(state:GameState,businessId:string,city:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const moved=relocateBusiness(state.businesses[index],city,state.cash);
+  if(!moved.ok)return result(state,false,moved.reason);
+  state.cash=moved.cash??state.cash;
+  state.businesses[index]=moved.business;
+  return result(state,true,"Business relocated to "+moved.business.city+".");
+}
+
+export function sellBusinessAction(state:GameState,businessId:string):GameActionResult {
+  const index=state.businesses.findIndex(item=>item.id===businessId);
+  if(index<0)return result(state,false,"Business not found.");
+  const [business]=state.businesses.splice(index,1);
+  const proceeds=business.value*.9;
+  state.cash+=proceeds;
+  state.activity.unshift({type:"business-sale",amount:proceeds,day:state.market.day});
+  return result(state,true,business.name+" sold.");
+}
+
+export function advanceBusinessEconomy(state:GameState,minutes=1):number {
+  let totalProfit=0;
+  state.businesses=state.businesses.map(business=>{
+    const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty);
+    totalProfit+=result.profit;
+    return result.business;
+  });
+  state.cash=Math.max(0,state.cash+totalProfit);
+  return totalProfit;
+}
+
+export const OFFLINE_EARNINGS_CAP_MINUTES=480;
+export function applyOfflineBusinessEarnings(state:GameState,elapsedMs:number):{earned:number;minutes:number} {
+  const elapsedMinutes=state.lastActiveAt>0&&state.settings.speed>0&&Number.isFinite(elapsedMs)?Math.max(0,elapsedMs/60000):0;
+  const minutes=Math.min(OFFLINE_EARNINGS_CAP_MINUTES,elapsedMinutes);
+  const earned=advanceBusinessEconomy(state,minutes);
+  state.lastActiveAt=Date.now();
+  return {earned,minutes};
 }
 
 export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState;market:Stock[];events:GameNews[]} {
