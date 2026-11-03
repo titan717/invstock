@@ -1,4 +1,5 @@
 import type { Stock } from "@/lib/market";
+import type { CurrencyCode, Difficulty } from "@/lib/currency";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -6,7 +7,7 @@ export const MARKET_SESSION_MINUTES = 390;
 export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
-export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark" };
+export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty };
 export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean };
 export type GameMission={id:string;title:string;description:string;metric:"trades"|"properties"|"growth";target:number;progress:number;reward:number;xpReward:number;claimed:boolean};
 export type ChallengeBot={name:string;returnPct:number;risk:number};
@@ -18,7 +19,7 @@ export function createDefaultMissions():GameMission[]{return [
 ];}
 export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
-  version: 2;
+  version: 3;
   profileName: string;
   xp: number;
   rank: string;
@@ -66,13 +67,13 @@ export const ACHIEVEMENTS = [
   {id:"Landlord",description:"Buy your first property."},
   {id:"Millionaire",description:"Reach one million dollars in net worth."}
 ] as const;
-const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark"};
+const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal"};
 const object = (v:unknown):Record<string,any> => v && typeof v==="object" && !Array.isArray(v) ? v as Record<string,any> : {};
 const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(v) ? v : fallback;
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
 export function createGameState(seed=731991): GameState {
-  return {version:2,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
+  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{}};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -110,7 +111,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
 
 export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
   const source=object(raw);
-  if(source.version!==2)return migrateLegacySave(raw,stocks);
+  if(source.version!==2&&source.version!==3)return migrateLegacySave(raw,stocks);
   const defaults=createGameState();
   const market=object(source.market),challenge=object(source.weeklyChallenge);
   const holdings:Record<string,GameHolding>={};
@@ -120,7 +121,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
   return {
-    ...defaults,...source,version:2,profileName:String(source.profileName??defaults.profileName),
+    ...defaults,...source,version:3,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
@@ -128,7 +129,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     holdings,buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
     achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
-    settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)},
+    settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
     history:Array.isArray(source.history)?source.history.slice(-1950):[],
     dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
     holdSince:object(source.holdSince) as Record<string,number>,
