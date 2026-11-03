@@ -114,7 +114,28 @@ export function fireEmployee(business: Business, employeeId: string): BusinessAc
   return { ok: true, business: { ...business, employees } };
 }
 
-export function setBusinessStrategy(business: Business, strategy: BusinessStrategy): Business {
+
+const ROLE_PROGRESSION: EmployeeRole[] = ["worker", "specialist", "supervisor", "manager", "director"];
+
+export function promoteEmployee(business: Business, employeeId: string): BusinessActionResult<Business> {
+  const index = business.employees.findIndex(employee => employee.id === employeeId);
+  if (index < 0) return { ok: false, reason: "Employee not found." };
+  const employee = business.employees[index];
+  const nextRole = ROLE_PROGRESSION[ROLE_PROGRESSION.indexOf(employee.role) + 1];
+  if (!nextRole) return { ok: false, reason: "This employee has reached the highest role." };
+  const updated = {
+    ...employee,
+    role: nextRole,
+    salaryPerDay: EMPLOYEE_ROLES[nextRole].salaryPerDay,
+    skill: Math.min(1, employee.skill + 0.08),
+    experience: employee.experience + 1,
+    morale: Math.min(100, employee.morale + 8),
+  };
+  const employees = [...business.employees];
+  employees[index] = updated;
+  return { ok: true, business: { ...business, employees } };
+}
+\nexport function setBusinessStrategy(business: Business, strategy: BusinessStrategy): Business {
   return { ...business, strategy };
 }
 
