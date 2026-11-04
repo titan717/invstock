@@ -6,10 +6,12 @@ import type { Stock } from "@/lib/market";
 import { CURRENCIES, formatCompactMoney, formatMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
 import { BUSINESS_CATALOG, EMPLOYEE_ROLES, calculateBusinessEconomics, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 import { PROPERTY_CATALOG, PROPERTY_CITIES, calculatePropertyEconomics } from "@/lib/real-estate";
+import { REBIRTH_UNLOCK_NET_WORTH, calculateLegacyPoints, type LegacyUpgrade } from "@/lib/rebirth-engine";
+import type { InvestigationAction } from "@/lib/compliance-engine";
 
 type BankAction="deposit"|"withdraw"|"borrow"|"repay";
 type BuildingAction="buy"|"upgrade"|"sell";
-type Panel="Bank"|"Crypto"|"Businesses"|"Real Estate"|"Buildings"|"Achievements"|"Settings";
+type Panel="Bank"|"Crypto"|"Businesses"|"Real Estate"|"Compliance"|"Rebirth"|"Buildings"|"Achievements"|"Settings";
 type Props={
   state:GameState;stocks:Stock[];
   onBank:(action:BankAction,amount:number)=>void;
@@ -26,13 +28,18 @@ type Props={
   onPropertyBuy:(listingId:string,city:string)=>void;
   onPropertyUpgrade:(propertyId:string)=>void;
   onPropertySell:(propertyId:string)=>void;
+  onComplianceReview:()=>void;
+  onComplianceHire:()=>void;
+  onInvestigationResolve:(action:InvestigationAction)=>void;
+  onLegacyUpgrade:(upgrade:LegacyUpgrade)=>void;
+  onRebirth:()=>void;
   onSpeed:(speed:number)=>void;
   onSetting:(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>void;
   onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
 };
 
 
-export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onPropertyBuy,onPropertyUpgrade,onPropertySell,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onPropertyBuy,onPropertyUpgrade,onPropertySell,onComplianceReview,onComplianceHire,onInvestigationResolve,onLegacyUpgrade,onRebirth,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
   const [panel,setPanel]=useState<Panel>("Bank");
   const [amount,setAmount]=useState("100");
   const [cryptoAmount,setCryptoAmount]=useState("0.01");
@@ -43,12 +50,13 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
   const [relocationCity,setRelocationCity]=useState("Mumbai");
   const [saveText,setSaveText]=useState("");
   const [confirmReset,setConfirmReset]=useState(false);
+  const [confirmRebirth,setConfirmRebirth]=useState(false);
   const money=(value:number)=>formatMoney(value,state.settings.currency);
   const compactMoney=(value:number)=>formatCompactMoney(value,state.settings.currency);
   const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*DIFFICULTY_RULES[state.settings.difficulty].creditLimit-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
-      {(["Bank","Crypto","Businesses","Real Estate","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
+      {(["Bank","Crypto","Businesses","Real Estate","Compliance","Rebirth","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
     </div>
     {panel==="Bank"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Cash balance</small><b>{compactMoney(state.cash)}</b></div><div><small>Savings balance</small><b>{compactMoney(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{compactMoney(state.loan)}</b></div><div><small>Available credit</small><b>{compactMoney(availableCredit)}</b></div></div>
@@ -100,6 +108,30 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
       <label className="game-field-label" htmlFor="property-city">Investment city</label>
       <select id="property-city" className="game-amount-input" value={propertyCity} onChange={e=>setPropertyCity(e.target.value)}>{PROPERTY_CITIES.map(city=><option key={city.name} value={city.name}>{city.name}, {city.country}</option>)}</select>
       {PROPERTY_CATALOG.map(listing=>{const city=PROPERTY_CITIES.find(item=>item.name===propertyCity)??PROPERTY_CITIES[0];return <div className="game-business-market" key={listing.id}><span><b>{listing.name}</b><small>{listing.description} · {listing.type}</small></span><b>{money(listing.basePrice*city.priceIndex*DIFFICULTY_RULES[state.settings.difficulty].buildingCost)}</b><button onClick={()=>onPropertyBuy(listing.id,propertyCity)}>Buy property</button></div>;})}
+    </div>}
+    {panel==="Compliance"&&<div className="game-panel-content">
+      <h3>Financial integrity</h3>
+      <div className="game-balance-grid"><div><small>Scrutiny level</small><b className={state.scrutiny.level==="critical"||state.scrutiny.level==="high"?"loss":state.scrutiny.level==="moderate"?"":"gain"}>{state.scrutiny.level.toUpperCase()}</b></div><div><small>Scrutiny score</small><b>{Math.round(state.scrutiny.score)}/100</b></div><div><small>Compliance officer</small><b>{state.scrutiny.complianceOfficer?"Hired":"Not hired"}</b></div><div><small>Reviews completed</small><b>{state.scrutiny.reviews}</b></div></div>
+      <p className="game-muted">Reviews are based on activity signals and records quality. Legitimate, documented transactions should not create automatic penalties.</p>
+      {state.scrutiny.reasons.length>0?<><h3>Why your activity was flagged</h3>{state.scrutiny.reasons.map(reason=><div className="game-achievement" key={reason}><span>!</span><div><b>{reason}</b><small>Keep supporting records and reconcile outstanding items.</small></div></div>)}</>:<p className="game-muted">No active risk indicators. Keep your financial records up to date.</p>}
+      {state.scrutiny.investigation?.status==="open"?<div className="game-property-card">
+        <div className="game-business-heading"><div><b>Investigation {state.scrutiny.investigation.id}</b><small>OPEN · {state.scrutiny.investigation.reason}</small></div><b className="loss">{money(state.scrutiny.investigation.fine)}</b></div>
+        <div className="game-business-metrics"><span><small>Estimated tax adjustment</small><b>{money(state.scrutiny.investigation.estimatedTaxAdjustment)}</b></span><span><small>Legal cost</small><b>{money(state.scrutiny.investigation.legalCost)}</b></span><span><small>Reputation impact</small><b>{state.scrutiny.investigation.reputationPenalty}</b></span></div>
+        <div className="game-business-actions"><button onClick={()=>onInvestigationResolve("submit-records")}>Submit records</button><button onClick={()=>onInvestigationResolve("pay-fine")}>Pay fine</button><button className="danger-outline" onClick={()=>onInvestigationResolve("challenge")}>Challenge decision</button></div>
+      </div>:state.scrutiny.investigation&&<p className="game-muted">Latest case status: {state.scrutiny.investigation.status.toUpperCase()}.</p>}
+      <div className="game-business-actions"><button onClick={onComplianceReview}>Run financial review</button><button disabled={state.scrutiny.complianceOfficer} onClick={onComplianceHire}>Hire compliance officer · {money(5000)}</button></div>
+    </div>}
+    {panel==="Rebirth"&&<div className="game-panel-content">
+      <h3>Legacy &amp; rebirth</h3>
+      <div className="game-balance-grid"><div><small>Legacy Points</small><b>{state.legacy.points}</b></div><div><small>Lifetime points</small><b>{state.legacy.lifetimePoints}</b></div><div><small>Rebirths</small><b>{state.legacy.rebirthCount}</b></div><div><small>Next rebirth milestone</small><b>{compactMoney(REBIRTH_UNLOCK_NET_WORTH)}</b></div></div>
+      <p className="game-muted">Reach {money(REBIRTH_UNLOCK_NET_WORTH)} net worth to rebirth. You reset ordinary assets and progress, but keep your profile, settings, permanent achievements and purchased legacy upgrades.</p>
+      <div className="game-property-card"><div className="game-business-heading"><div><b>Rebirth preview</b><small>Current empire value: {money(calculateNetWorth(state,stocks))}</small></div><b>{calculateLegacyPoints(calculateNetWorth(state,stocks),state.achievements.length)} LP</b></div>
+        <div className="game-business-metrics"><span><small>Cash after rebirth</small><b>{money(5000+state.legacy.upgrades.startingCapital*2500)}</b></span><span><small>Stocks / crypto</small><b>Reset to zero</b></span><span><small>Businesses / properties</small><b>Reset to zero</b></span><span><small>Achievements</small><b>Kept permanently</b></span></div>
+        {confirmRebirth?<div className="game-confirm-panel"><b>Are you sure? This cannot be undone.</b><p className="game-muted">Your stocks, crypto, businesses, properties, cash and ordinary progress will reset. Your Legacy Points, upgrades, profile, settings and permanent achievements will remain.</p><div className="game-business-actions"><button className="danger-outline" onClick={()=>{onRebirth();setConfirmRebirth(false);}}>Confirm rebirth</button><button onClick={()=>setConfirmRebirth(false)}>Cancel</button></div></div>:<button disabled={calculateNetWorth(state,stocks)<REBIRTH_UNLOCK_NET_WORTH} onClick={()=>setConfirmRebirth(true)}>Rebirth and earn Legacy Points</button>}
+      </div>
+      <h3>Permanent legacy upgrades</h3>
+      {([{id:"startingCapital",label:"Starting capital",detail:"+ $2,500 starting cash per level",cost:5},{id:"businessCostReduction",label:"Business efficiency",detail:"Lower business acquisition costs",cost:8},{id:"researchEfficiency",label:"Research efficiency",detail:"Permanent research progression bonus",cost:10}] as {id:LegacyUpgrade;label:string;detail:string;cost:number}[]).map(item=><div className="game-business-market" key={item.id}><span><b>{item.label} · Level {state.legacy.upgrades[item.id]}/5</b><small>{item.detail} · Next level costs {item.cost*(state.legacy.upgrades[item.id]+1)} LP</small></span><button disabled={state.legacy.upgrades[item.id]>=5||state.legacy.points<item.cost*(state.legacy.upgrades[item.id]+1)} onClick={()=>onLegacyUpgrade(item.id)}>Unlock</button></div>)}
+      {state.legacy.permanentAchievements.length>0&&<><h3>Permanent achievements</h3><p className="game-muted">{state.legacy.permanentAchievements.join(" · ")}</p></>}
     </div>}
     {panel==="Buildings"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Property value</small><b>{money(state.buildings.reduce((sum,item)=>sum+item.value,0))}</b></div><div><small>Income per minute</small><b className="gain">{money(state.buildings.reduce((sum,item)=>sum+item.income,0))}</b></div></div>
