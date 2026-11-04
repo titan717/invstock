@@ -57,4 +57,14 @@ describe("InvStock save restoration", () => {
     expect(nvdaRow?.querySelector(".stock-row-logo")).not.toBeNull();
     expect(nvdaRow?.querySelector(".stock-row-sparkline")).not.toBeNull();
   });
+  it("shows an honest empty state when the simulator has no news events", async () => {
+    render(<InvStockApp />);
+
+    const nameInput = await screen.findByLabelText("Your name");
+    fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
+    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
+    fireEvent.click(screen.getByRole("button", { name: "News" }));
+
+    expect(screen.getByText("No market updates yet.")).toBeTruthy();
+  });
 });
