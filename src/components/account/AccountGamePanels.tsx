@@ -8,10 +8,11 @@ import { BUSINESS_CATALOG, EMPLOYEE_ROLES, calculateBusinessEconomics, type Busi
 import { PROPERTY_CATALOG, PROPERTY_CITIES, calculatePropertyEconomics } from "@/lib/real-estate";
 import { REBIRTH_UNLOCK_NET_WORTH, calculateLegacyPoints, type LegacyUpgrade } from "@/lib/rebirth-engine";
 import type { InvestigationAction } from "@/lib/compliance-engine";
+import type { MultiAssetClass } from "@/lib/multi-asset";
 
 type BankAction="deposit"|"withdraw"|"borrow"|"repay";
 type BuildingAction="buy"|"upgrade"|"sell";
-type Panel="Bank"|"Crypto"|"Businesses"|"Real Estate"|"Compliance"|"Rebirth"|"Buildings"|"Achievements"|"Settings";
+type Panel="Bank"|"Crypto"|"Businesses"|"Real Estate"|"Other Markets"|"Compliance"|"Rebirth"|"Buildings"|"Achievements"|"Settings";
 type Props={
   state:GameState;stocks:Stock[];
   onBank:(action:BankAction,amount:number)=>void;
@@ -33,13 +34,14 @@ type Props={
   onInvestigationResolve:(action:InvestigationAction)=>void;
   onLegacyUpgrade:(upgrade:LegacyUpgrade)=>void;
   onRebirth:()=>void;
+  onMultiAssetTrade:(symbol:string,side:"buy"|"sell",quantity:number)=>void;
   onSpeed:(speed:number)=>void;
   onSetting:(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>void;
   onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
 };
 
 
-export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onPropertyBuy,onPropertyUpgrade,onPropertySell,onComplianceReview,onComplianceHire,onInvestigationResolve,onLegacyUpgrade,onRebirth,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onPropertyBuy,onPropertyUpgrade,onPropertySell,onComplianceReview,onComplianceHire,onInvestigationResolve,onLegacyUpgrade,onRebirth,onMultiAssetTrade,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
   const [panel,setPanel]=useState<Panel>("Bank");
   const [amount,setAmount]=useState("100");
   const [cryptoAmount,setCryptoAmount]=useState("0.01");
@@ -51,12 +53,14 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
   const [saveText,setSaveText]=useState("");
   const [confirmReset,setConfirmReset]=useState(false);
   const [confirmRebirth,setConfirmRebirth]=useState(false);
+  const [multiAssetClass,setMultiAssetClass]=useState<MultiAssetClass>("forex");
+  const [multiAssetQuantity,setMultiAssetQuantity]=useState("1");
   const money=(value:number)=>formatMoney(value,state.settings.currency);
   const compactMoney=(value:number)=>formatCompactMoney(value,state.settings.currency);
   const availableCredit=Math.max(0,calculateNetWorth(state,stocks)*DIFFICULTY_RULES[state.settings.difficulty].creditLimit-state.loan);
   return <section className="game-panels" id="account-game-panels">
     <div className="game-panel-nav" aria-label="Simulator tools">
-      {(["Bank","Crypto","Businesses","Real Estate","Compliance","Rebirth","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
+      {(["Bank","Crypto","Businesses","Real Estate","Other Markets","Compliance","Rebirth","Buildings","Achievements","Settings"] as Panel[]).map(item=><button key={item} className={panel===item?"selected":""} onClick={()=>setPanel(item)}>{item}</button>)}
     </div>
     {panel==="Bank"&&<div className="game-panel-content">
       <div className="game-balance-grid"><div><small>Cash balance</small><b>{compactMoney(state.cash)}</b></div><div><small>Savings balance</small><b>{compactMoney(state.savings)}</b></div><div><small>Outstanding loan</small><b className={state.loan>0?"loss":""}>{compactMoney(state.loan)}</b></div><div><small>Available credit</small><b>{compactMoney(availableCredit)}</b></div></div>
@@ -108,6 +112,15 @@ export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,
       <label className="game-field-label" htmlFor="property-city">Investment city</label>
       <select id="property-city" className="game-amount-input" value={propertyCity} onChange={e=>setPropertyCity(e.target.value)}>{PROPERTY_CITIES.map(city=><option key={city.name} value={city.name}>{city.name}, {city.country}</option>)}</select>
       {PROPERTY_CATALOG.map(listing=>{const city=PROPERTY_CITIES.find(item=>item.name===propertyCity)??PROPERTY_CITIES[0];return <div className="game-business-market" key={listing.id}><span><b>{listing.name}</b><small>{listing.description} · {listing.type}</small></span><b>{money(listing.basePrice*city.priceIndex*DIFFICULTY_RULES[state.settings.difficulty].buildingCost)}</b><button onClick={()=>onPropertyBuy(listing.id,propertyCity)}>Buy property</button></div>;})}
+    </div>}
+    {panel==="Other Markets"&&<div className="game-panel-content">
+      <h3>Global financial markets</h3>
+      <p className="game-muted">Trade simulated currency exposure, commodities and government bonds. Prices are game-generated and quoted in your selected display currency.</p>
+      <div className="game-segmented">{(["forex","commodity","bond"] as MultiAssetClass[]).map(item=><button key={item} className={multiAssetClass===item?"selected":""} onClick={()=>setMultiAssetClass(item)}>{item==="forex"?"Forex":item==="commodity"?"Commodities":"Government bonds"}</button>)}</div>
+      <label className="game-field-label" htmlFor="multi-asset-quantity">Order quantity</label>
+      <input id="multi-asset-quantity" className="game-amount-input" type="number" min="0.0001" step="0.01" value={multiAssetQuantity} onChange={e=>setMultiAssetQuantity(e.target.value)}/>
+      <div className="game-balance-grid"><div><small>Other-market positions</small><b>{Object.keys(state.multiAssetHoldings).length}</b></div><div><small>Market value</small><b>{compactMoney(Object.entries(state.multiAssetHoldings).reduce((sum,[symbol,holding])=>sum+holding.quantity*(state.multiAssetMarket.find(asset=>asset.symbol===symbol)?.price??0),0))}</b></div><div><small>Bond coupon rate</small><b>{state.multiAssetMarket.filter(asset=>asset.assetClass==="bond"&&state.multiAssetHoldings[asset.symbol]).reduce((sum,asset)=>sum+asset.annualYield,0).toFixed(2)}%</b></div></div>
+      {state.multiAssetMarket.filter(asset=>asset.assetClass===multiAssetClass).map(asset=>{const holding=state.multiAssetHoldings[asset.symbol];return <div className="game-business-market" key={asset.symbol}><span><b>{asset.name}</b><small>{asset.symbol} · {asset.unit} · {asset.description}</small><small className={asset.changePct>=0?"gain":"loss"}>{asset.changePct>=0?"+":""}{asset.changePct.toFixed(2)}% · {asset.annualYield>0?asset.annualYield.toFixed(2)+"% annual coupon":"No coupon"}</small>{holding&&<small>Owned: {holding.quantity.toLocaleString(undefined,{maximumFractionDigits:4})} · Avg. cost {money(holding.averageCost)}</small>}</span><b>{money(asset.price)}</b><div className="game-business-actions"><button onClick={()=>onMultiAssetTrade(asset.symbol,"buy",Number(multiAssetQuantity))}>Buy</button><button disabled={!holding||holding.quantity<Number(multiAssetQuantity)} onClick={()=>onMultiAssetTrade(asset.symbol,"sell",Number(multiAssetQuantity))}>Sell</button></div></div>;})}
     </div>}
     {panel==="Compliance"&&<div className="game-panel-content">
       <h3>Financial integrity</h3>
