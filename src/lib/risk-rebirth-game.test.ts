@@ -37,6 +37,7 @@ describe("compliance and rebirth game integration", () => {
 
   it("opens a review from high-risk financial signals and supports resolution", () => {
     const state = createGameState();
+    state.activity.unshift({ type: "transfer", amount: 250000, day: 1 });
     const review = reviewFinancialScrutinyAction(state, {
       largeMovementCount: 4, rapidTradeCount: 9, highRiskBusinessCount: 2,
       unexplainedWealthRatio: 0.6, unpaidTax: 2500, recordsQuality: 0.1,
