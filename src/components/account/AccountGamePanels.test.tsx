@@ -10,7 +10,7 @@ describe("full simulator account panels", () => {
   it("submits bank actions using the entered amount", () => {
     const state=createGameState();state.cash=1000;state.savings=250;
     const onBank=vi.fn();
-    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={onBank} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={onBank} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Bank"}));
     fireEvent.change(screen.getByLabelText("Amount in USD"),{target:{value:"125"}});
     fireEvent.click(screen.getByRole("button",{name:"Deposit"}));
@@ -21,7 +21,7 @@ describe("full simulator account panels", () => {
     const state=createGameState();state.cash=5000;
     state.buildings=[{id:"cafe-1",name:"Coffee Cafe",icon:"☕",cost:1800,value:2200,income:1.35,level:2}];
     const onBuilding=vi.fn();
-    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={onBuilding} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={onBuilding} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Buildings"}));
     fireEvent.click(screen.getByRole("button",{name:/Upgrade Coffee Cafe/}));
     expect(onBuilding).toHaveBeenCalledWith("upgrade","cafe-1");
@@ -32,7 +32,7 @@ describe("full simulator account panels", () => {
   it("shows achievement unlock status and sends simulator speed changes", () => {
     const state=createGameState();state.achievements=["First Profit"];
     const onSpeed=vi.fn();
-    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={onSpeed} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={onSpeed} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Achievements"}));
     expect(screen.getByText("First Profit")).toBeTruthy();
     expect(screen.getByText("Unlocked")).toBeTruthy();
@@ -45,7 +45,7 @@ describe("full simulator account panels", () => {
 
   it("shows global property markets and forwards city-specific purchase choices", () => {
     const onPropertyBuy=vi.fn();
-    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={onPropertyBuy} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={onPropertyBuy} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Real Estate"}));
     fireEvent.change(screen.getByLabelText("Investment city"),{target:{value:"Dubai"}});
     fireEvent.click(screen.getAllByRole("button",{name:"Buy property"})[0]);
@@ -54,16 +54,40 @@ describe("full simulator account panels", () => {
 
   it("shows business opportunities and forwards city-specific acquisitions", () => {
     const onBusinessBuy=vi.fn();
-    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={onBusinessBuy} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={onBusinessBuy} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Businesses"}));
     fireEvent.change(screen.getByLabelText("Business city"),{target:{value:"Pune"}});
     fireEvent.click(screen.getAllByRole("button",{name:"Acquire"})[0]);
     expect(onBusinessBuy).toHaveBeenCalledWith("retail-shop","Pune");
   });
 
+
+  it("exposes compliance review and officer hiring actions", () => {
+    const onComplianceReview=vi.fn();
+    const onComplianceHire=vi.fn();
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={onComplianceReview} onComplianceHire={onComplianceHire} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Compliance"}));
+    fireEvent.click(screen.getByRole("button",{name:"Run financial review"}));
+    fireEvent.click(screen.getByRole("button",{name:/Hire compliance officer/}));
+    expect(onComplianceReview).toHaveBeenCalledTimes(1);
+    expect(onComplianceHire).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires explicit confirmation before rebirth", () => {
+    const state=createGameState();
+    state.cash=12_000_000;
+    const onRebirth=vi.fn();
+    render(<AccountGamePanels state={state} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={onRebirth} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Rebirth"}));
+    fireEvent.click(screen.getByRole("button",{name:"Rebirth and earn Legacy Points"}));
+    expect(onRebirth).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button",{name:"Confirm rebirth"}));
+    expect(onRebirth).toHaveBeenCalledTimes(1);
+  });
+
   it("shows crypto markets and forwards fractional buy and sell orders", () => {
     const onCryptoTrade=vi.fn();
-    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={onCryptoTrade} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={onCryptoTrade} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Crypto"}));
     fireEvent.change(screen.getByLabelText("Order quantity (crypto units)"),{target:{value:"0.025"}});
     fireEvent.click(screen.getAllByRole("button",{name:"Buy"})[0]);
@@ -72,7 +96,7 @@ describe("full simulator account panels", () => {
 
   it("saves currency and difficulty preferences from Settings", () => {
     const onSetting=vi.fn();
-    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={onSetting} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={onSetting} onImport={vi.fn()} onExport={vi.fn()} onReset={vi.fn()}/>);
     fireEvent.click(screen.getByRole("button",{name:"Settings"}));
     fireEvent.change(screen.getByLabelText("Choose your currency"),{target:{value:"INR"}});
     fireEvent.change(screen.getByLabelText("Economy difficulty"),{target:{value:"hard"}});
@@ -82,7 +106,7 @@ describe("full simulator account panels", () => {
 
   it("requires an explicit in-app confirmation before resetting progress", () => {
     const onReset=vi.fn();
-    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={onReset}/>);
+    render(<AccountGamePanels state={createGameState()} stocks={createMarket()} onBank={vi.fn()} onBuilding={vi.fn()} onCryptoTrade={vi.fn()} onBusinessBuy={vi.fn()} onBusinessHire={vi.fn()} onBusinessFire={vi.fn()} onBusinessPromote={vi.fn()} onBusinessUpgrade={vi.fn()} onBusinessStrategy={vi.fn()} onBusinessRelocate={vi.fn()} onBusinessSell={vi.fn()} onPropertyBuy={vi.fn()} onPropertyUpgrade={vi.fn()} onPropertySell={vi.fn()} onComplianceReview={vi.fn()} onComplianceHire={vi.fn()} onInvestigationResolve={vi.fn()} onLegacyUpgrade={vi.fn()} onRebirth={vi.fn()} onSpeed={vi.fn()} onSetting={vi.fn()} onImport={vi.fn()} onExport={vi.fn()} onReset={onReset}/>);
     fireEvent.click(screen.getByRole("button",{name:"Settings"}));
     fireEvent.click(screen.getByRole("button",{name:"Reset simulator"}));
     expect(onReset).not.toHaveBeenCalled();

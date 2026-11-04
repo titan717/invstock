@@ -3,6 +3,8 @@ import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
+import { createScrutinyState, evaluateFinancialScrutiny, hireComplianceOfficer, resolveInvestigation, type ScrutinyState, type ScrutinySignals, type InvestigationAction } from "@/lib/compliance-engine";
+import { createLegacyState, completeRebirth, purchaseLegacyUpgrade, type LegacyState, type LegacyUpgrade, type RebirthSnapshot } from "@/lib/rebirth-engine";
 import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
 
 export const MARKET_OPEN_MINUTE = 570;
@@ -23,7 +25,7 @@ export function createDefaultMissions():GameMission[]{return [
 ];}
 export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
-  version: 3;
+  version: 4;
   profileName: string;
   xp: number;
   rank: string;
@@ -59,6 +61,8 @@ export type GameState = {
   businesses: Business[];
   realEstate: RealEstateProperty[];
   lastActiveAt: number;
+  scrutiny: ScrutinyState;
+  legacy: LegacyState;
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -87,8 +91,42 @@ const object = (v:unknown):Record<string,any> => v && typeof v==="object" && !Ar
 const number = (v:unknown,fallback=0) => typeof v==="number" && Number.isFinite(v) ? v : fallback;
 const strings = (v:unknown) => Array.isArray(v) ? v.filter((x):x is string=>typeof x==="string") : [];
 
+
+function hydrateScrutiny(value:unknown,fallback:ScrutinyState):ScrutinyState {
+  const source=object(value), investigation=object(source.investigation);
+  const level=["low","moderate","high","critical"].includes(source.level)?source.level:fallback.level;
+  const status=["open","cleared","fine-paid","dismissed"].includes(investigation.status)?investigation.status:"open";
+  return {
+    score:Math.max(0,Math.min(100,number(source.score))),
+    level:level as ScrutinyState["level"],
+    reasons:strings(source.reasons),
+    investigation:source.investigation&&investigation.id?{
+      id:String(investigation.id),status:status as NonNullable<ScrutinyState["investigation"]>["status"],
+      openedAtReview:number(investigation.openedAtReview),fine:number(investigation.fine),
+      estimatedTaxAdjustment:number(investigation.estimatedTaxAdjustment),legalCost:number(investigation.legalCost),
+      reputationPenalty:number(investigation.reputationPenalty),reason:String(investigation.reason??"Financial activity requires review.")
+    }:null,
+    complianceOfficer:Boolean(source.complianceOfficer),
+    reviews:number(source.reviews),
+    lastActivityFingerprint:String(source.lastActivityFingerprint??""),
+  };
+}
+function hydrateLegacy(value:unknown):LegacyState {
+  const source=object(value),upgrades=object(source.upgrades);
+  return {
+    points:number(source.points),lifetimePoints:number(source.lifetimePoints),rebirthCount:number(source.rebirthCount),
+    upgrades:{
+      startingCapital:number(upgrades.startingCapital),
+      businessCostReduction:number(upgrades.businessCostReduction),
+      researchEfficiency:number(upgrades.researchEfficiency),
+    },
+    permanentAchievements:strings(source.permanentAchievements),
+    lastRebirthDay:number(source.lastRebirthDay),
+  };
+}
+
 export function createGameState(seed=731991): GameState {
-  return {version:3,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0};
+  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState()};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -133,7 +171,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
 
 export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
   const source=object(raw);
-  if(source.version!==2&&source.version!==3)return migrateLegacySave(raw,stocks);
+  if(source.version!==2&&source.version!==3&&source.version!==4)return migrateLegacySave(raw,stocks);
   const defaults=createGameState();
   const market=object(source.market),challenge=object(source.weeklyChallenge);
   const holdings:Record<string,GameHolding>={};
@@ -143,7 +181,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
   return {
-    ...defaults,...source,version:3,profileName:String(source.profileName??defaults.profileName),
+    ...defaults,...source,version:4,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
@@ -157,7 +195,8 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     holdSince:object(source.holdSince) as Record<string,number>,
     market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
     news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
-    prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay)
+    prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay),
+    scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy)
   };
 }
 
@@ -237,7 +276,7 @@ export function cryptoTradeAction(state:GameState, symbol:string, side:"buy"|"se
 
 export function purchaseBusinessAction(state:GameState,definitionId:string,city:string):GameActionResult {
   const id="business-"+(state.businesses.length+1)+"-"+state.market.day;
-  const purchase=purchaseBusiness(state.cash,definitionId,city,id);
+  const purchase=purchaseBusiness(state.cash,definitionId,city,id,1-state.legacy.upgrades.businessCostReduction*.02);
   if(!purchase.ok)return result(state,false,purchase.reason);
   state.cash=purchase.cash??state.cash;
   state.businesses.push(purchase.business);
@@ -348,6 +387,87 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
   state.activity.unshift({type:"property-sale",amount:sale.proceeds,day:state.market.day});
   state.activity=state.activity.slice(0,100);
   return result(state,true,property.name+" sold.");
+}
+
+
+export function reviewFinancialScrutinyAction(state:GameState,signals:ScrutinySignals):GameActionResult {
+  const financialTypes=new Set(["buy","sell","crypto-buy","crypto-sell","deposit","withdraw","borrow","repay","business-purchase","business-sale","property-purchase","property-sale","transfer"]);
+  const fingerprint=state.activity.filter(item=>financialTypes.has(item.type)).slice(0,12).map(item=>[item.type,item.amount??0,item.qty??0,item.day].join(":")).join("|");
+  if(!fingerprint||fingerprint===state.scrutiny.lastActivityFingerprint)return result(state,true,"No new financial activity since the last review.");
+  const previous=state.scrutiny.investigation?.id;
+  const evaluated=evaluateFinancialScrutiny(state.scrutiny,signals);
+  state.scrutiny={...evaluated.state,lastActivityFingerprint:fingerprint};
+  if(state.scrutiny.investigation?.id&&state.scrutiny.investigation.id!==previous){
+    state.activity.unshift({type:"investigation-opened",amount:state.scrutiny.investigation.fine,day:state.market.day});
+  }
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,state.scrutiny.investigation?.status==="open"?"Financial review opened. Check the reasons and respond with records or an appeal.":"Financial risk review updated.");
+}
+
+export function hireComplianceOfficerAction(state:GameState):GameActionResult {
+  const cost=5000;
+  if(state.scrutiny.complianceOfficer)return result(state,false,"A compliance officer is already employed.");
+  if(state.cash<cost)return result(state,false,"Not enough cash to hire a compliance officer.");
+  state.cash-=cost;
+  state.scrutiny=hireComplianceOfficer(state.scrutiny);
+  state.activity.unshift({type:"compliance-officer-hired",amount:cost,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Compliance officer hired. Future risk reviews will be more forgiving.");
+}
+
+export function resolveFinancialInvestigationAction(state:GameState,action:InvestigationAction,challengeSuccessful=false):GameActionResult {
+  if(!state.scrutiny.investigation||state.scrutiny.investigation.status!=="open")return result(state,false,"There is no open investigation to resolve.");
+  const resolved=resolveInvestigation(state.scrutiny,action,challengeSuccessful);
+  state.scrutiny={
+    score:resolved.score,level:resolved.level,reasons:resolved.reasons,
+    investigation:resolved.investigation,complianceOfficer:resolved.complianceOfficer,reviews:resolved.reviews,lastActivityFingerprint:resolved.lastActivityFingerprint
+  };
+  const tax=action==="submit-records"||action==="challenge"&&challengeSuccessful?0:resolved.investigation?.estimatedTaxAdjustment??0;
+  const totalDue=resolved.cashPenalty+resolved.legalCost+tax;
+  if(totalDue>0){
+    const paid=Math.min(state.cash,totalDue);
+    state.cash-=paid;
+    state.loan+=totalDue-paid;
+    state.activity.unshift({type:"investigation-settlement",amount:totalDue,day:state.market.day});
+  }else{
+    state.activity.unshift({type:"investigation-resolved",day:state.market.day});
+  }
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,totalDue>0?"Investigation settled. Review the transaction history for costs.":"Investigation cleared.");
+}
+
+export function purchaseLegacyUpgradeAction(state:GameState,upgrade:LegacyUpgrade):GameActionResult {
+  const purchased=purchaseLegacyUpgrade(state.legacy,upgrade);
+  if(!purchased.ok)return result(state,false,purchased.reason);
+  state.legacy=purchased.legacy;
+  state.activity.unshift({type:"legacy-upgrade",amount:upgrade==="startingCapital"?2500:upgrade==="businessCostReduction"?2:1,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Permanent legacy upgrade unlocked.");
+}
+
+export function rebirthGameAction(state:GameState,stocks:Stock[]):GameActionResult {
+  const snapshot:RebirthSnapshot={
+    profileName:state.profileName,
+    netWorth:calculateNetWorth(state,stocks),
+    achievements:state.achievements,
+    settings:{currency:state.settings.currency,difficulty:state.settings.difficulty},
+    stockPositions:Object.keys(state.holdings).length,
+    cryptoPositions:Object.keys(state.cryptoHoldings).length,
+    businesses:state.businesses.length,
+    properties:state.realEstate.length,
+  };
+  const completed=completeRebirth(state.legacy,snapshot,state.market.day);
+  if(!completed.ok)return result(state,false,completed.reason);
+  const next=createGameState((state.prngSeed+1)>>>0);
+  next.profileName=state.profileName;
+  next.settings={...state.settings,speed:1};
+  next.legacy=completed.legacy;
+  next.cash=completed.preview.reset.cash;
+  next.start=next.cash;
+  next.best=next.cash;
+  next.weeklyChallenge=createWeeklyChallenge(1,next.cash);
+  next.activity=[{type:"rebirth",amount:completed.preview.legacyPointsEarned,day:1}];
+  return {ok:true,state:next,message:"Empire reborn. Permanent legacy rewards and profile settings were preserved."};
 }
 
 export function advanceBusinessEconomy(state:GameState,minutes=1):number {

@@ -10,7 +10,7 @@ describe("financial empire game state", () => {
       holdings: { MSFT: { quantity: 2, averageCost: 300 } },
       settings: { speed: 2 },
     }, createMarket());
-    expect(state.version).toBe(3);
+    expect(state.version).toBe(4);
     expect(state.cash).toBe(2500);
     expect(state.holdings.MSFT.quantity).toBe(2);
     expect(state.settings.currency).toBe("USD");

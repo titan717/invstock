@@ -472,3 +472,16 @@
   display: grid;
   gap: 12px;
 }
+
+
+/* Compliance and rebirth confirmation surfaces */
+.game-confirm-panel {
+  border: 1px solid var(--border, #2b3139);
+  border-radius: 12px;
+  padding: 14px;
+  margin-top: 12px;
+  background: var(--surface, #151a20);
+}
+.game-confirm-panel p {
+  margin: 8px 0 12px;
+}
