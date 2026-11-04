@@ -391,9 +391,12 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
 
 
 export function reviewFinancialScrutinyAction(state:GameState,signals:ScrutinySignals):GameActionResult {
+  const financialTypes=new Set(["buy","sell","crypto-buy","crypto-sell","deposit","withdraw","borrow","repay","business-purchase","business-sale","property-purchase","property-sale","transfer"]);
+  const fingerprint=state.activity.filter(item=>financialTypes.has(item.type)).slice(0,12).map(item=>[item.type,item.amount??0,item.qty??0,item.day].join(":")).join("|");
+  if(!fingerprint||fingerprint===state.scrutiny.lastActivityFingerprint)return result(state,true,"No new financial activity since the last review.");
   const previous=state.scrutiny.investigation?.id;
   const evaluated=evaluateFinancialScrutiny(state.scrutiny,signals);
-  state.scrutiny=evaluated.state;
+  state.scrutiny={...evaluated.state,lastActivityFingerprint:fingerprint};
   if(state.scrutiny.investigation?.id&&state.scrutiny.investigation.id!==previous){
     state.activity.unshift({type:"investigation-opened",amount:state.scrutiny.investigation.fine,day:state.market.day});
   }
