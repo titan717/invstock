@@ -35,7 +35,7 @@ export type InvestigationAction = "submit-records" | "pay-fine" | "challenge";
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 
 export function createScrutinyState(): ScrutinyState {
-  return { score: 0, level: "low", reasons: [], investigation: null, complianceOfficer: false, reviews: 0 };
+  return { score: 0, level: "low", reasons: [], investigation: null, complianceOfficer: false, reviews: 0, lastActivityFingerprint: "" };
 }
 
 export function getScrutinyLevel(score: number): ScrutinyLevel {
