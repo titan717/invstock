@@ -123,7 +123,8 @@ function hydrateLegacy(value:unknown):LegacyState {
     lastRebirthDay:number(source.lastRebirthDay),
   };
 }
-\nexport function createGameState(seed=731991): GameState {
+
+export function createGameState(seed=731991): GameState {
   return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState()};
 }
 
@@ -464,7 +465,8 @@ export function rebirthGameAction(state:GameState,stocks:Stock[]):GameActionResu
   next.activity=[{type:"rebirth",amount:completed.preview.legacyPointsEarned,day:1}];
   return {ok:true,state:next,message:"Empire reborn. Permanent legacy rewards and profile settings were preserved."};
 }
-\nexport function advanceBusinessEconomy(state:GameState,minutes=1):number {
+
+export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
   pruneExpiredWorldNews(state,state.market.day);
   state.businesses=state.businesses.map(business=>{
