@@ -74,7 +74,7 @@ describe("InvStock save restoration", () => {
     fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
     fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
     fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
-    fireEvent.click(await screen.findByRole("button", { name: /NVDA,/ }));
+    fireEvent.click((await screen.findAllByRole("button", { name: /NVDA,/ }))[0]);
 
     expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "News" })).toBeTruthy();
