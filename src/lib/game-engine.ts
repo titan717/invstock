@@ -3,6 +3,7 @@ import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
+import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -352,12 +353,15 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
 export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
   state.businesses=state.businesses.map(business=>{
-    const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty);
+    const modifiers=getWorldIndustryModifiers(state.news,business.industry,state.market.day);
+    const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty,modifiers.demand,modifiers.costs);
     totalProfit+=result.profit;
     return result.business;
   });
   state.realEstate=state.realEstate.map(property=>{
-    const result=simulatePropertyMinutes(property,minutes,1,state.settings.difficulty);
+    const industry=property.type==="retail"?"retail":property.type==="warehouse"?"logistics":"construction";
+    const modifiers=getWorldIndustryModifiers(state.news,industry,state.market.day);
+    const result=simulatePropertyMinutes(property,minutes,modifiers.demand,state.settings.difficulty,modifiers.costs);
     totalProfit+=result.netIncome;
     return result.property;
   });
