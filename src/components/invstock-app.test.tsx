@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import InvStockApp from "@/components/invstock-app";
 
 describe("InvStock save restoration", () => {
   beforeEach(() => {
+    cleanup();
     Object.defineProperty(globalThis, "ResizeObserver", {
       configurable: true,
       value: class {
