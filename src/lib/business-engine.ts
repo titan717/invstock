@@ -69,7 +69,8 @@ const DIFFICULTY_ECONOMY: Record<Difficulty, { income: number; operatingCosts: n
 export function purchaseBusiness(cash: number, definitionId: string, city: string, id: string, costMultiplier = 1): BusinessActionResult<Business> {
   const definition = BUSINESS_CATALOG.find(item => item.id === definitionId);
   if (!definition) return { ok: false, reason: "Business opportunity not found.", cash };
-  const acquisitionCost = Math.round(definition.baseCost * Math.max(0.8, Math.min(1.1, costMultiplier)));\n  if (!Number.isFinite(cash) || cash < acquisitionCost) return { ok: false, reason: "Not enough cash to acquire this business.", cash };
+  const acquisitionCost = Math.round(definition.baseCost * Math.max(0.8, Math.min(1.1, costMultiplier)));
+  if (!Number.isFinite(cash) || cash < acquisitionCost) return { ok: false, reason: "Not enough cash to acquire this business.", cash };
   if (!city.trim() || !id.trim()) return { ok: false, reason: "Choose a city and a valid business identity.", cash };
   const business: Business = {
     id,
