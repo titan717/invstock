@@ -34,7 +34,7 @@ export function SwipeToSubmit({ onConfirm, text = "Swipe up to place trade", dis
           if (disabled) return;
           startY.current = event.clientY;
           setDragging(true);
-          event.currentTarget.setPointerCapture(event.pointerId);
+          event.currentTarget.setPointerCapture?.(event.pointerId);
         }}
         onPointerMove={(event) => {
           if (startY.current === null || disabled) return;
