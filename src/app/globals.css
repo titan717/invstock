@@ -916,3 +916,87 @@ body {
     transition: none;
   }
 }
+
+
+/* Accessible, touch-friendly trade entry controls */
+.number-pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 14px;
+  width: 100%;
+  max-width: 330px;
+  margin: 8px auto 14px;
+}
+.number-pad button {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  touch-action: manipulation;
+}
+.number-pad button:active:not(:disabled) {
+  background: #2C2C2E;
+}
+.number-pad button:disabled {
+  color: #55565A;
+}
+.number-pad button:focus-visible,
+.swipe-submit-handle:focus-visible {
+  outline: 2px solid #5A6CF3;
+  outline-offset: 3px;
+}
+.swipe-submit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 64px;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: #2C2C2E;
+  color: #B6B6BC;
+  font-size: 13px;
+  font-weight: 650;
+  user-select: none;
+}
+.swipe-submit > span {
+  pointer-events: none;
+}
+.swipe-submit-handle {
+  position: absolute;
+  top: 4px;
+  left: calc(50% - 28px);
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border: 0;
+  border-radius: 9999px;
+  background: #00D09C;
+  color: #000000;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 140ms ease-out, opacity 140ms ease-out;
+}
+.swipe-submit[data-dragging="true"] .swipe-submit-handle {
+  transition: none;
+  cursor: grabbing;
+}
+.swipe-submit-handle:disabled,
+.swipe-submit.is-disabled .swipe-submit-handle {
+  background: #55565A;
+  color: #929298;
+  cursor: not-allowed;
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-submit-handle {
+    transition: none;
+  }
+}
