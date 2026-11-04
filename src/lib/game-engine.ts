@@ -108,6 +108,7 @@ function hydrateScrutiny(value:unknown,fallback:ScrutinyState):ScrutinyState {
     }:null,
     complianceOfficer:Boolean(source.complianceOfficer),
     reviews:number(source.reviews),
+    lastActivityFingerprint:String(source.lastActivityFingerprint??""),
   };
 }
 function hydrateLegacy(value:unknown):LegacyState {
