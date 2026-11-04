@@ -21,6 +21,20 @@ describe("compliance and rebirth game integration", () => {
     expect(restored.legacy.rebirthCount).toBe(0);
   });
 
+
+  it("does not increase scrutiny when the same financial activity is reviewed twice", () => {
+    const state = createGameState();
+    state.activity.unshift({ type: "transfer", amount: 250000, day: 1 });
+    const signals = {
+      largeMovementCount: 1, rapidTradeCount: 0, highRiskBusinessCount: 0,
+      unexplainedWealthRatio: 0.2, unpaidTax: 0, recordsQuality: 0.8,
+    };
+    reviewFinancialScrutinyAction(state, signals);
+    const score = state.scrutiny.score;
+    reviewFinancialScrutinyAction(state, signals);
+    expect(state.scrutiny.score).toBe(score);
+  });
+
   it("opens a review from high-risk financial signals and supports resolution", () => {
     const state = createGameState();
     const review = reviewFinancialScrutinyAction(state, {
