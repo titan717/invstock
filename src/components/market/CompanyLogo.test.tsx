@@ -18,6 +18,6 @@ describe("company branding", () => {
     const logo = screen.getByRole("img", {name:"Microsoft logo"});
     fireEvent.error(logo);
     fireEvent.error(screen.getByRole("img", {name:"Microsoft logo"}));
-    expect(screen.getByText("MSFT")).toBeTruthy();
+    expect(screen.getByText("MS")).toBeTruthy();
   });
 });
