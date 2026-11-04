@@ -6,13 +6,12 @@ import { CryptoDiscovery } from "@/components/market/CryptoDiscovery";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import type { GameState } from "@/lib/game-engine";
 import type { CurrencyCode } from "@/lib/currency";
-import type { Stock } from "@/lib/market";
+import { sectors, type Stock } from "@/lib/market";
 
 type Props = {
   stocks: Stock[];
   state: GameState;
   currency: CurrencyCode;
-  sectors: string[];
   search: string;
   onSearchChange: (value: string) => void;
   sector: string;
@@ -33,7 +32,7 @@ function SectionHeading({ title, action, onAction }: { title: string; action?: s
 }
 
 export function DiscoveryPage({
-  stocks, state, currency, sectors, search, onSearchChange, sector, onSectorChange,
+  stocks, state, currency, search, onSearchChange, sector, onSectorChange,
   asset, onAssetChange, onStockSelect, onCryptoTrade
 }: Props) {
   const filtered = useMemo(() => stocks.filter(stock =>
