@@ -157,7 +157,7 @@ export default function InvStockApp(){
  const optionExpiryDays=Number(optionExpiry.match(/(\d+)d/)?.[1]??4);
  const optionRows=useMemo(()=>generateOptionChain(stockByTicker("NVDA"),optionExpiryDays,optionSide==="Calls"?"call":"put"),[stocks,optionExpiryDays,optionSide]);
  
- const activeNews=game.news.length?game.news.map(event=>({source:event.source??(event.type==="aftermath"?"Rumour desk":"Market simulator"),time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers,status:event.status,category:event.category,severity:event.severity,reliability:event.reliability})):newsItems;
+ const activeNews=game.news.length?game.news.map(event=>({source:event.source?(event.source+" · "+event.status+" · "+Math.round(event.reliability*100)+"% reliable"):(event.type==="aftermath"?"Rumour desk":"Market simulator"),time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers,status:event.status,category:event.category,severity:event.severity,reliability:event.reliability})):newsItems;
  const filteredNews=activeNews.filter(item=>newsFilter==="My stocks"?(saved.includes(item.ticker)||Boolean(portfolio.holdings[item.ticker])):newsFilter==="Market"?(item.tickers?.length??1)>1:true);
 const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:stockByTicker(ticker),holding:h})).filter(x=>x.stock);
  const stockValue=positions.reduce((sum,item)=>sum+item.stock.price*item.holding.quantity,0);
