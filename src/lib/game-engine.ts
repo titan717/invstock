@@ -352,6 +352,7 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
 
 export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
+  pruneExpiredWorldNews(state,state.market.day);
   state.businesses=state.businesses.map(business=>{
     const modifiers=getWorldIndustryModifiers(state.news,business.industry,state.market.day);
     const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty,modifiers.demand,modifiers.costs);
