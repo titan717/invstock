@@ -485,3 +485,27 @@
 .game-confirm-panel p {
   margin: 8px 0 12px;
 }
+
+
+/* Multi-asset market selector */
+.game-segmented {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px;
+  margin: 10px 0 14px;
+  border: 1px solid var(--border, #2b3139);
+  border-radius: 12px;
+  background: var(--surface, #151a20);
+}
+.game-segmented button {
+  flex: 1 0 auto;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  color: var(--muted, #848e9c);
+}
+.game-segmented button.selected {
+  color: var(--text, #f5f5f5);
+  background: var(--surface-raised, #252b33);
+}
