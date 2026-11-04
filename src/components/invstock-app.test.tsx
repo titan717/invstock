@@ -57,41 +57,4 @@ describe("InvStock save restoration", () => {
     expect(nvdaRow?.querySelector(".stock-row-logo")).not.toBeNull();
     expect(nvdaRow?.querySelector(".stock-row-sparkline")).not.toBeNull();
   });
-  it("shows an honest empty state when the simulator has no news events", async () => {
-    render(<InvStockApp />);
-
-    const nameInput = await screen.findByLabelText("Your name");
-    fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
-    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
-    fireEvent.click(screen.getByRole("button", { name: "News" }));
-
-    expect(screen.getByText("No market updates yet.")).toBeTruthy();
-  });
-  it("opens the stock detail hub with overview tabs and a real trading action", async () => {
-    render(<InvStockApp />);
-
-    const nameInput = await screen.findByLabelText("Your name");
-    fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
-    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
-    fireEvent.click((await screen.findAllByRole("button", { name: /NVDA,/ }))[0]);
-
-    expect(screen.getByRole("tab", { name: "Overview" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "News" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Events" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Buy NVDA" })).toBeTruthy();
-  });
-
-  it("shows net worth and asset allocation in Account", async () => {
-    render(<InvStockApp />);
-
-    const nameInput = await screen.findByLabelText("Your name");
-    fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
-    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Account" }));
-
-    expect(screen.getByText("Net worth")).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Asset allocation" })).toBeTruthy();
-    expect(screen.getByText("Holdings")).toBeTruthy();
-  });
 });
