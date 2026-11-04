@@ -1,7 +1,6 @@
 "use client";
 
 import { Line, LineChart, ResponsiveContainer } from "recharts";
-import { ChevronRight } from "lucide-react";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { formatMoney } from "@/lib/currency";
 import type { CurrencyCode } from "@/lib/currency";
@@ -53,7 +52,6 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price" 
         <b>{mode === "volume" ? `Vol ${(stock.volume / 1e6).toFixed(1)}M` : formatMoney(stock.price, currency)}</b>
         <small className={`stock-change-pill ${positive ? "positive" : "negative"}`}>{signedChange(stock.change)}</small>
       </span>
-      <ChevronRight className="stock-row-chevron" size={15} aria-hidden="true" />
     </button>
   );
 }
