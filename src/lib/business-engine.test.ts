@@ -22,6 +22,15 @@ describe("business empire management", () => {
     expect(purchase.business.employees).toHaveLength(0);
   });
 
+  it("applies permanent legacy discounts to acquisition costs without changing asset value", () => {
+    const standard = purchaseBusiness(25000, "retail-shop", "Bengaluru", "standard");
+    const discounted = purchaseBusiness(25000, "retail-shop", "Bengaluru", "discounted", 0.9);
+    expect(standard.ok && discounted.ok).toBe(true);
+    if (!standard.ok || !discounted.ok) return;
+    expect(discounted.cash).toBeGreaterThan(standard.cash??0);
+    expect(discounted.business.value).toBe(standard.business.value);
+  });
+
   it("rejects unaffordable purchases without changing cash", () => {
     const purchase = purchaseBusiness(100, "retail-shop", "Bengaluru", "biz-1");
     expect(purchase.ok).toBe(false);
