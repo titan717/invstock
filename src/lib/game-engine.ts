@@ -5,6 +5,7 @@ import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeB
 import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
 import { createScrutinyState, evaluateFinancialScrutiny, hireComplianceOfficer, resolveInvestigation, type ScrutinyState, type ScrutinySignals, type InvestigationAction } from "@/lib/compliance-engine";
 import { createLegacyState, completeRebirth, purchaseLegacyUpgrade, type LegacyState, type LegacyUpgrade, type RebirthSnapshot } from "@/lib/rebirth-engine";
+import { createMultiAssetMarket, executeMultiAssetTrade, calculateMultiAssetValue, accrueBondIncome, advanceMultiAssetMarket, type MultiAssetInstrument, type MultiAssetHolding } from "@/lib/multi-asset";
 import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
 
 export const MARKET_OPEN_MINUTE = 570;
@@ -25,7 +26,7 @@ export function createDefaultMissions():GameMission[]{return [
 ];}
 export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
-  version: 4;
+  version: 5;
   profileName: string;
   xp: number;
   rank: string;
@@ -63,6 +64,8 @@ export type GameState = {
   lastActiveAt: number;
   scrutiny: ScrutinyState;
   legacy: LegacyState;
+  multiAssetMarket: MultiAssetInstrument[];
+  multiAssetHoldings: Record<string,MultiAssetHolding>;
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -126,7 +129,7 @@ function hydrateLegacy(value:unknown):LegacyState {
 }
 
 export function createGameState(seed=731991): GameState {
-  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState()};
+  return {version:5,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState()};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -171,7 +174,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
 
 export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
   const source=object(raw);
-  if(source.version!==2&&source.version!==3&&source.version!==4)return migrateLegacySave(raw,stocks);
+  if(source.version!==2&&source.version!==3&&source.version!==4&&source.version!==5)return migrateLegacySave(raw,stocks);
   const defaults=createGameState();
   const market=object(source.market),challenge=object(source.weeklyChallenge);
   const holdings:Record<string,GameHolding>={};
@@ -181,7 +184,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
   return {
-    ...defaults,...source,version:4,profileName:String(source.profileName??defaults.profileName),
+    ...defaults,...source,version:5,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
     weeklyChallenge:Array.isArray(challenge.bots)?{...defaults.weeklyChallenge,...challenge}:defaults.weeklyChallenge,
@@ -196,7 +199,9 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
     news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
     prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay),
-    scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy)
+    scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy),
+    multiAssetMarket:Array.isArray(source.multiAssetMarket)?source.multiAssetMarket:defaults.multiAssetMarket,
+    multiAssetHoldings:object(source.multiAssetHoldings) as Record<string,MultiAssetHolding>
   };
 }
 
@@ -223,7 +228,7 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
   const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
   const realEstateValue=state.realEstate.reduce((sum,property)=>sum+property.value,0);
-  return state.cash+state.savings+positions+cryptoValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  return state.cash+state.savings+positions+cryptoValue+multiAssetValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
@@ -390,6 +395,17 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
 }
 
 
+export function multiAssetTradeAction(state:GameState,symbol:string,side:"buy"|"sell",quantity:number):GameActionResult {
+  const trade=executeMultiAssetTrade(state.cash,state.multiAssetHoldings,state.multiAssetMarket,symbol,side,quantity);
+  if(!trade.ok)return result(state,false,trade.reason);
+  state.cash=trade.cash;
+  state.multiAssetHoldings=trade.holdings;
+  state.realizedPnl+=trade.realizedPnl;
+  state.activity.unshift({type:side==="buy"?"multiasset-buy":"multiasset-sell",ticker:symbol,qty:quantity,price:state.multiAssetMarket.find(asset=>asset.symbol===symbol)?.price,fee:trade.fee,amount:quantity*(state.multiAssetMarket.find(asset=>asset.symbol===symbol)?.price??0),day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,(side==="buy"?"Bought ":"Sold ")+quantity+" "+symbol+".");
+}
+
 export function reviewFinancialScrutinyAction(state:GameState,signals:ScrutinySignals):GameActionResult {
   const financialTypes=new Set(["buy","sell","crypto-buy","crypto-sell","deposit","withdraw","borrow","repay","business-purchase","business-sale","property-purchase","property-sale","transfer"]);
   const fingerprint=state.activity.filter(item=>financialTypes.has(item.type)).slice(0,12).map(item=>[item.type,item.amount??0,item.qty??0,item.day].join(":")).join("|");
@@ -473,6 +489,9 @@ export function rebirthGameAction(state:GameState,stocks:Stock[]):GameActionResu
 export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
   pruneExpiredWorldNews(state,state.market.day);
+  const bondIncome=accrueBondIncome(state.multiAssetHoldings,state.multiAssetMarket,minutes);
+  totalProfit+=bondIncome;
+  state.multiAssetMarket=advanceMultiAssetMarket(state.multiAssetMarket,(state.prngSeed+state.market.minute+state.market.day)>>>0);
   state.businesses=state.businesses.map(business=>{
     const modifiers=getWorldIndustryModifiers(state.news,business.industry,state.market.day);
     const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty,modifiers.demand,modifiers.costs);
