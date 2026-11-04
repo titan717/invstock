@@ -387,7 +387,84 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
   return result(state,true,property.name+" sold.");
 }
 
-export function advanceBusinessEconomy(state:GameState,minutes=1):number {
+
+export function reviewFinancialScrutinyAction(state:GameState,signals:ScrutinySignals):GameActionResult {
+  const previous=state.scrutiny.investigation?.id;
+  const evaluated=evaluateFinancialScrutiny(state.scrutiny,signals);
+  state.scrutiny=evaluated.state;
+  if(state.scrutiny.investigation?.id&&state.scrutiny.investigation.id!==previous){
+    state.activity.unshift({type:"investigation-opened",amount:state.scrutiny.investigation.fine,day:state.market.day});
+  }
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,state.scrutiny.investigation?.status==="open"?"Financial review opened. Check the reasons and respond with records or an appeal.":"Financial risk review updated.");
+}
+
+export function hireComplianceOfficerAction(state:GameState):GameActionResult {
+  const cost=5000;
+  if(state.scrutiny.complianceOfficer)return result(state,false,"A compliance officer is already employed.");
+  if(state.cash<cost)return result(state,false,"Not enough cash to hire a compliance officer.");
+  state.cash-=cost;
+  state.scrutiny=hireComplianceOfficer(state.scrutiny);
+  state.activity.unshift({type:"compliance-officer-hired",amount:cost,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Compliance officer hired. Future risk reviews will be more forgiving.");
+}
+
+export function resolveFinancialInvestigationAction(state:GameState,action:InvestigationAction,challengeSuccessful=false):GameActionResult {
+  if(!state.scrutiny.investigation||state.scrutiny.investigation.status!=="open")return result(state,false,"There is no open investigation to resolve.");
+  const resolved=resolveInvestigation(state.scrutiny,action,challengeSuccessful);
+  state.scrutiny={
+    score:resolved.score,level:resolved.level,reasons:resolved.reasons,
+    investigation:resolved.investigation,complianceOfficer:resolved.complianceOfficer,reviews:resolved.reviews
+  };
+  const tax=action==="submit-records"||action==="challenge"&&challengeSuccessful?0:resolved.investigation?.estimatedTaxAdjustment??0;
+  const totalDue=resolved.cashPenalty+resolved.legalCost+tax;
+  if(totalDue>0){
+    const paid=Math.min(state.cash,totalDue);
+    state.cash-=paid;
+    state.loan+=totalDue-paid;
+    state.activity.unshift({type:"investigation-settlement",amount:totalDue,day:state.market.day});
+  }else{
+    state.activity.unshift({type:"investigation-resolved",day:state.market.day});
+  }
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,totalDue>0?"Investigation settled. Review the transaction history for costs.":"Investigation cleared.");
+}
+
+export function purchaseLegacyUpgradeAction(state:GameState,upgrade:LegacyUpgrade):GameActionResult {
+  const purchased=purchaseLegacyUpgrade(state.legacy,upgrade);
+  if(!purchased.ok)return result(state,false,purchased.reason);
+  state.legacy=purchased.legacy;
+  state.activity.unshift({type:"legacy-upgrade",amount:upgrade==="startingCapital"?2500:upgrade==="businessCostReduction"?2:1,day:state.market.day});
+  state.activity=state.activity.slice(0,100);
+  return result(state,true,"Permanent legacy upgrade unlocked.");
+}
+
+export function rebirthGameAction(state:GameState,stocks:Stock[]):GameActionResult {
+  const snapshot:RebirthSnapshot={
+    profileName:state.profileName,
+    netWorth:calculateNetWorth(state,stocks),
+    achievements:state.achievements,
+    settings:{currency:state.settings.currency,difficulty:state.settings.difficulty},
+    stockPositions:Object.keys(state.holdings).length,
+    cryptoPositions:Object.keys(state.cryptoHoldings).length,
+    businesses:state.businesses.length,
+    properties:state.realEstate.length,
+  };
+  const completed=completeRebirth(state.legacy,snapshot,state.market.day);
+  if(!completed.ok)return result(state,false,completed.reason);
+  const next=createGameState((state.prngSeed+1)>>>0);
+  next.profileName=state.profileName;
+  next.settings={...state.settings,speed:1};
+  next.legacy=completed.legacy;
+  next.cash=completed.preview.reset.cash;
+  next.start=next.cash;
+  next.best=next.cash;
+  next.weeklyChallenge=createWeeklyChallenge(1,next.cash);
+  next.activity=[{type:"rebirth",amount:completed.preview.legacyPointsEarned,day:1}];
+  return {ok:true,state:next,message:"Empire reborn. Permanent legacy rewards and profile settings were preserved."};
+}
+\nexport function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
   pruneExpiredWorldNews(state,state.market.day);
   state.businesses=state.businesses.map(business=>{
