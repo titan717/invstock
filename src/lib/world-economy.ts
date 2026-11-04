@@ -84,7 +84,7 @@ export function applyWorldNewsToMarket(stocks: Stock[], event: WorldNewsEvent): 
     if (!affected.has(stock.ticker)) return stock;
     const beta = clamp(stock.beta, 0.6, 1.8);
     const reliabilityWeight = event.status === "unverified" ? 0.35 : event.status === "developing" ? 0.7 : 1;
-    const move = event.sentiment * event.magnitude * beta * reliabilityWeight;
+    const move = event.sentiment * Number(event.magnitude ?? 0) * beta * reliabilityWeight;
     const price = Math.max(0.5, stock.price * (1 + move));
     const rounded = Number(price.toFixed(2));
     return { ...stock, price: rounded, change: stock.change + (rounded / stock.price - 1) * 100, history: [...stock.history.slice(-389), rounded] };
