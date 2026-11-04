@@ -3,6 +3,7 @@ import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
+import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -11,7 +12,7 @@ export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
 export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty };
-export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean };
+export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean; source?: string; category?: string; affectedIndustries?: string[]; affectedSectors?: string[]; reliability?: number; status?: "developing"|"confirmed"|"unverified"; severity?: "low"|"moderate"|"high"|"critical"; expiresDay?: number; demandImpact?: number; costImpact?: number };
 export type GameMission={id:string;title:string;description:string;metric:"trades"|"properties"|"growth";target:number;progress:number;reward:number;xpReward:number;claimed:boolean};
 export type ChallengeBot={name:string;returnPct:number;risk:number};
 export type WeeklyChallenge={week:number;joined:boolean;startValue:number;bots:ChallengeBot[];reward:number;claimed:boolean};
@@ -351,13 +352,17 @@ export function sellRealEstateAction(state:GameState,propertyId:string):GameActi
 
 export function advanceBusinessEconomy(state:GameState,minutes=1):number {
   let totalProfit=0;
+  pruneExpiredWorldNews(state,state.market.day);
   state.businesses=state.businesses.map(business=>{
-    const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty);
+    const modifiers=getWorldIndustryModifiers(state.news,business.industry,state.market.day);
+    const result=simulateBusinessMinutes(business,minutes,state.settings.difficulty,modifiers.demand,modifiers.costs);
     totalProfit+=result.profit;
     return result.business;
   });
   state.realEstate=state.realEstate.map(property=>{
-    const result=simulatePropertyMinutes(property,minutes,1,state.settings.difficulty);
+    const industry=property.type==="retail"?"retail":property.type==="warehouse"?"logistics":"construction";
+    const modifiers=getWorldIndustryModifiers(state.news,industry,state.market.day);
+    const result=simulatePropertyMinutes(property,minutes,modifiers.demand,state.settings.difficulty,modifiers.costs);
     totalProfit+=result.netIncome;
     return result.property;
   });

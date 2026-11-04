@@ -85,12 +85,12 @@ export function purchaseProperty(cash: number, listingId: string, cityName: stri
   };
 }
 
-export function calculatePropertyEconomics(property: RealEstateProperty, demandFactor = 1, difficulty: Difficulty = "normal") {
+export function calculatePropertyEconomics(property: RealEstateProperty, demandFactor = 1, difficulty: Difficulty = "normal", maintenanceFactor = 1) {
   const city = PROPERTY_CITIES.find(item => item.name === property.city);
   const demand = Math.max(0.2, Math.min(1.5, (city?.demand ?? 1) * demandFactor));
   const occupancy = Math.max(0, Math.min(1, property.occupancy));
   const monthlyGrossRent = property.monthlyRent * occupancy * demand;
-  const monthlyMaintenance = property.value * property.maintenanceRate / 12;
+  const monthlyMaintenance = property.value * property.maintenanceRate / 12 * Math.max(0.7, Math.min(1.6, maintenanceFactor));
   return { monthlyGrossRent, monthlyMaintenance, monthlyNetRent: monthlyGrossRent - monthlyMaintenance, demand, occupancy };
 }
 
@@ -108,9 +108,9 @@ export function sellProperty(property: RealEstateProperty) {
   return { property, proceeds: property.value * 0.92 };
 }
 
-export function simulatePropertyMinutes(property: RealEstateProperty, minutes: number, demandFactor = 1, difficulty: Difficulty = "normal") {
+export function simulatePropertyMinutes(property: RealEstateProperty, minutes: number, demandFactor = 1, difficulty: Difficulty = "normal", maintenanceFactor = 1) {
   const elapsed = Number.isFinite(minutes) ? Math.max(0, Math.min(10080, minutes)) : 0;
-  const economics = calculatePropertyEconomics(property, demandFactor, difficulty);
+  const economics = calculatePropertyEconomics(property, demandFactor, difficulty, maintenanceFactor);
   const grossRent = economics.monthlyGrossRent / 30 * elapsed / 390;
   const maintenance = economics.monthlyMaintenance / 30 * elapsed / 390;
   const netIncome = grossRent - maintenance;

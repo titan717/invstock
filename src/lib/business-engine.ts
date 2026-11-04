@@ -158,7 +158,7 @@ export function relocateBusiness(business: Business, city: string, cash: number)
   return { ok: true, cash: cash - cost, business: { ...business, city: city.trim(), reputation: Math.max(0, business.reputation - 2) } };
 }
 
-export function calculateBusinessEconomics(business: Business, difficulty: Difficulty, demandFactor = 1) {
+export function calculateBusinessEconomics(business: Business, difficulty: Difficulty, demandFactor = 1, costFactor = 1) {
   const rules = DIFFICULTY_ECONOMY[difficulty];
   const staff = business.employees;
   const averageSkill = staff.length ? staff.reduce((sum, employee) => sum + employee.skill, 0) / staff.length : 0;
@@ -167,14 +167,14 @@ export function calculateBusinessEconomics(business: Business, difficulty: Diffi
   const strategy = business.strategy === "value" ? { price: 0.88, demand: 1.2 } : business.strategy === "premium" ? { price: 1.18, demand: 0.82 } : { price: 1, demand: 1 };
   const demand = Math.max(0.2, Math.min(2, Number.isFinite(demandFactor) ? demandFactor : 1));
   const dailyRevenue = business.baseRevenuePerDay * business.level * productivity * strategy.price * strategy.demand * demand * rules.income;
-  const dailyOperatingCosts = business.baseOperatingCostsPerDay * business.level * rules.operatingCosts;
+  const dailyOperatingCosts = business.baseOperatingCostsPerDay * business.level * rules.operatingCosts * Math.max(0.7, Math.min(1.6, costFactor));
   const dailyPayroll = staff.reduce((sum, employee) => sum + employee.salaryPerDay, 0) * rules.salaries;
   return { dailyRevenue, dailyOperatingCosts, dailyPayroll, dailyProfit: dailyRevenue - dailyOperatingCosts - dailyPayroll, productivity, demandFactor: demand };
 }
 
-export function simulateBusinessMinutes(business: Business, minutes: number, difficulty: Difficulty, demandFactor = 1) {
+export function simulateBusinessMinutes(business: Business, minutes: number, difficulty: Difficulty, demandFactor = 1, costFactor = 1) {
   const elapsed = Number.isFinite(minutes) ? Math.max(0, Math.min(10080, minutes)) : 0;
-  const economics = calculateBusinessEconomics(business, difficulty, demandFactor);
+  const economics = calculateBusinessEconomics(business, difficulty, demandFactor, costFactor);
   const revenue = economics.dailyRevenue * elapsed / 390;
   const profit = economics.dailyProfit * elapsed / 390;
   return {
