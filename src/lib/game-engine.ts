@@ -226,6 +226,7 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const prices=new Map(stocks.map(s=>[s.ticker,s.price]));
   const positions=Object.entries(state.holdings).reduce((sum,[ticker,h])=>sum+(prices.get(ticker)??0)*h.quantity,0);
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
+  const multiAssetValue=calculateMultiAssetValue(state.multiAssetHoldings,state.multiAssetMarket);
   const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
   const realEstateValue=state.realEstate.reduce((sum,property)=>sum+property.value,0);
   return state.cash+state.savings+positions+cryptoValue+multiAssetValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
@@ -407,7 +408,7 @@ export function multiAssetTradeAction(state:GameState,symbol:string,side:"buy"|"
 }
 
 export function reviewFinancialScrutinyAction(state:GameState,signals:ScrutinySignals):GameActionResult {
-  const financialTypes=new Set(["buy","sell","crypto-buy","crypto-sell","deposit","withdraw","borrow","repay","business-purchase","business-sale","property-purchase","property-sale","transfer"]);
+  const financialTypes=new Set(["buy","sell","crypto-buy","crypto-sell","multiasset-buy","multiasset-sell","deposit","withdraw","borrow","repay","business-purchase","business-sale","property-purchase","property-sale","transfer"]);
   const fingerprint=state.activity.filter(item=>financialTypes.has(item.type)).slice(0,12).map(item=>[item.type,item.amount??0,item.qty??0,item.day].join(":")).join("|");
   if(!fingerprint||fingerprint===state.scrutiny.lastActivityFingerprint)return result(state,true,"No new financial activity since the last review.");
   const previous=state.scrutiny.investigation?.id;
