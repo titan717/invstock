@@ -19,6 +19,7 @@ export type ScrutinyState = {
   investigation: Investigation | null;
   complianceOfficer: boolean;
   reviews: number;
+  lastActivityFingerprint: string;
 };
 
 export type ScrutinySignals = {
