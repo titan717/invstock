@@ -59,6 +59,8 @@ export function previewRebirth(snapshot: RebirthSnapshot, legacy: LegacyState): 
       cash: 5_000 + legacy.upgrades.startingCapital * 2_500,
       stocks: 0,
       crypto: 0,
+      stockPositions: 0,
+      cryptoPositions: 0,
       businesses: 0,
       properties: 0,
       ordinaryProgress: true,
