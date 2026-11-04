@@ -13,7 +13,7 @@ describe("compliance and rebirth game integration", () => {
   it("migrates version-three saves without losing portfolio or settings", () => {
     const old = { ...createGameState(), version: 3, cash: 12000, holdings: { MSFT: { quantity: 2, averageCost: 400 } }, settings: { ...createGameState().settings, currency: "INR" } };
     const restored = hydrateGameState(old, []);
-    expect(restored.version).toBe(4);
+    expect(restored.version).toBe(5);
     expect(restored.cash).toBe(12000);
     expect(restored.holdings.MSFT.quantity).toBe(2);
     expect(restored.settings.currency).toBe("INR");
