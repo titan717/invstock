@@ -169,6 +169,8 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.businesses=Array.isArray(source.businesses)?source.businesses:[];
   state.realEstate=Array.isArray(source.realEstate)?source.realEstate:[];
   state.lastActiveAt=number(source.lastActiveAt);
+  state.multiAssetMarket=Array.isArray(source.multiAssetMarket)?source.multiAssetMarket:state.multiAssetMarket;
+  state.multiAssetHoldings=object(source.multiAssetHoldings) as Record<string,MultiAssetHolding>;
   return state;
 }
 
