@@ -485,3 +485,49 @@
 .game-confirm-panel p {
   margin: 8px 0 12px;
 }
+
+/* Discovery market switcher and crypto trading surface */
+.discovery-market-tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:0 0 16px;padding:5px;border:1px solid #2b3139;border-radius:15px;background:#111519}
+.discovery-market-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border:0;border-radius:11px;background:transparent;color:#89939f;font-size:12px;font-weight:750}
+.discovery-market-tabs button.selected{background:#24332d;color:#0ECB81;box-shadow:inset 0 0 0 1px #0ECB8140}
+.home-quick-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:4px 0 18px}
+.home-quick-actions>button{display:flex;align-items:center;gap:10px;min-width:0;padding:12px;border:1px solid #2b3139;border-radius:15px;background:#111519;text-align:left;transition:border-color .18s,transform .18s}
+.home-quick-actions>button:hover{border-color:#0ECB8166;transform:translateY(-1px)}
+.home-quick-actions>button>span:nth-child(2){display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.home-quick-actions b{font-size:11px}
+.home-quick-actions small{overflow:hidden;color:#89939f;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.home-quick-actions>button>svg{flex:none;color:#68717c}
+.home-quick-icon{display:grid;width:34px;height:34px;flex:none;place-items:center;border-radius:11px;background:#0ECB8118;color:#0ECB81}
+.home-quick-icon.crypto{background:#8B5CF618;color:#a78bfa}
+.crypto-discovery{display:flex;flex-direction:column;gap:14px}
+.crypto-overview{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.crypto-overview-card{display:flex;min-width:0;flex-direction:column;gap:7px;padding:14px;border:1px solid #2b3139;border-radius:16px;background:linear-gradient(145deg,#171d20,#111519)}
+.crypto-overview-card>span{display:flex;align-items:center;gap:6px;color:#89939f;font-size:10px}
+.crypto-overview-card>strong{overflow:hidden;font-size:clamp(17px,4vw,22px);text-overflow:ellipsis}
+.crypto-overview-card>small{color:#89939f;font-size:9px}
+.crypto-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crypto-toolbar h2{margin:0;font-size:17px}
+.crypto-toolbar p{margin:4px 0 0;color:#89939f;font-size:10px}
+.crypto-filter{display:flex;gap:3px;padding:3px;border:1px solid #2b3139;border-radius:999px;background:#111519}
+.crypto-filter button{padding:7px 9px;border:0;border-radius:999px;background:transparent;color:#89939f;font-size:9px;font-weight:700}
+.crypto-filter button.selected{background:#29332f;color:#0ECB81}
+.crypto-quantity{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;border:1px solid #2b3139;border-radius:13px;background:#111519}
+.crypto-quantity span{color:#aab2bd;font-size:11px;font-weight:650}
+.crypto-quantity input{width:110px;padding:7px;border:1px solid #343d47;border-radius:8px;background:#0B0E11;color:white;text-align:right;font-size:12px}
+.crypto-market-list{overflow:hidden;border:1px solid #2b3139;border-radius:17px;background:#111519}
+.crypto-market-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;align-items:center;gap:9px;padding:13px 12px;border-bottom:1px solid #ffffff0d}
+.crypto-market-row:last-child{border-bottom:0}
+.crypto-asset-identity{display:flex;min-width:0;align-items:center;gap:9px}
+.crypto-asset-mark{display:grid;width:36px;height:36px;flex:none;place-items:center;border:1px solid #ffffff12;border-radius:50%;font-size:15px;font-weight:900}
+.crypto-asset-identity>span:last-child,.crypto-asset-quote{display:flex;min-width:0;flex-direction:column;gap:4px}
+.crypto-asset-identity b,.crypto-asset-quote>b{overflow:hidden;font-size:11px;text-overflow:ellipsis;white-space:nowrap}
+.crypto-asset-identity small,.crypto-asset-quote small{color:#89939f;font-size:9px}
+.crypto-asset-quote{align-items:flex-end}
+.crypto-asset-quote>small:nth-child(2){display:flex;align-items:center;gap:2px;font-weight:750}
+.crypto-asset-quote .crypto-owned{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crypto-trade-actions{display:flex;gap:5px}
+.crypto-trade-actions button{min-width:43px;padding:7px 9px;border:1px solid #0ECB8160;border-radius:8px;background:#0ECB8118;color:#0ECB81;font-size:10px;font-weight:800}
+.crypto-trade-actions button.crypto-sell{border-color:#F6465D55;background:#F6465D12;color:#F6465D}
+.crypto-trade-actions button:disabled{cursor:not-allowed;opacity:.35}
+.crypto-disclaimer{margin:0;color:#89939f;font-size:9px;line-height:1.5}
+@media(max-width:430px){.home-quick-actions{gap:7px}.home-quick-actions>button{gap:7px;padding:10px}.home-quick-actions b{font-size:10px}.home-quick-actions small{font-size:8px}.crypto-market-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}.crypto-trade-actions{grid-column:1/-1;justify-content:flex-end}.crypto-trade-actions button{min-width:58px}.crypto-asset-mark{width:32px;height:32px}}
