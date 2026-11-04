@@ -67,7 +67,7 @@ describe("compliance and rebirth game integration", () => {
     state.profileName = "Alex";
     state.achievements = ["Landlord", "Millionaire"];
     state.holdings.MSFT = { quantity: 2, averageCost: 400 };
-    state.cryptoHoldings.BTC = { quantity: 0.5, averageCost: 50000 };
+    state.cryptoHoldings.BTC = { quantity: 0.5, averageCost: 50000, staked: 0 };
     state.legacy.points = 10;
     purchaseLegacyUpgradeAction(state, "startingCapital");
     const result = rebirthGameAction(state, []);
