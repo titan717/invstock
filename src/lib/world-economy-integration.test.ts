@@ -36,9 +36,14 @@ describe("world economy integration", () => {
       status: "confirmed", severity: "high", expiresDay: 2, demandImpact: 0.8, costImpact: 1.2,
     }];
     expect(calculateNetWorth(state, createMarket())).toBeGreaterThan(0);
-    const beforeCash = state.cash;
-    advanceBusinessEconomy(state, 390);
-    expect(state.cash).toBeLessThan(beforeCash);
+    const pressured = structuredClone(state);
+    const baseline = structuredClone(state);
+    pressured.news = state.news;
+    baseline.news = [];
+    const pressuredIncome = advanceBusinessEconomy(pressured, 390);
+    const baselineIncome = advanceBusinessEconomy(baseline, 390);
+    expect(pressuredIncome).toBeGreaterThan(0);
+    expect(pressuredIncome).toBeLessThan(baselineIncome);
   });
 
   it("removes expired world events from the active news timeline", () => {
