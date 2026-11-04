@@ -10,6 +10,7 @@ import { AccountGamePanels } from "@/components/account/AccountGamePanels";
 import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
+import { createWorldNewsEvent, applyWorldNewsToMarket } from "@/lib/world-economy";
 import { formatMoney, formatCompactMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
 import { advanceCryptoMarket } from "@/lib/crypto";
 import type { BusinessStrategy, EmployeeRole } from "@/lib/business-engine";
@@ -156,7 +157,7 @@ export default function InvStockApp(){
  const optionExpiryDays=Number(optionExpiry.match(/(\d+)d/)?.[1]??4);
  const optionRows=useMemo(()=>generateOptionChain(stockByTicker("NVDA"),optionExpiryDays,optionSide==="Calls"?"call":"put"),[stocks,optionExpiryDays,optionSide]);
  
- const activeNews=game.news.length?game.news.map(event=>({source:event.type==="aftermath"?"Rumour desk":"Market simulator",time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers})):newsItems;
+ const activeNews=game.news.length?game.news.map(event=>({source:event.source??(event.type==="aftermath"?"Rumour desk":"Market simulator"),time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers,status:event.status,category:event.category,severity:event.severity,reliability:event.reliability})):newsItems;
  const filteredNews=activeNews.filter(item=>newsFilter==="My stocks"?(saved.includes(item.ticker)||Boolean(portfolio.holdings[item.ticker])):newsFilter==="Market"?(item.tickers?.length??1)>1:true);
 const positions=Object.entries(portfolio.holdings).map(([ticker,h])=>({stock:stockByTicker(ticker),holding:h})).filter(x=>x.stock);
  const stockValue=positions.reduce((sum,item)=>sum+item.stock.price*item.holding.quantity,0);
