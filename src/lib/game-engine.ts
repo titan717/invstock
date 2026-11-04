@@ -274,7 +274,7 @@ export function cryptoTradeAction(state:GameState, symbol:string, side:"buy"|"se
 
 export function purchaseBusinessAction(state:GameState,definitionId:string,city:string):GameActionResult {
   const id="business-"+(state.businesses.length+1)+"-"+state.market.day;
-  const purchase=purchaseBusiness(state.cash,definitionId,city,id);
+  const purchase=purchaseBusiness(state.cash,definitionId,city,id,1-state.legacy.upgrades.businessCostReduction*.02);
   if(!purchase.ok)return result(state,false,purchase.reason);
   state.cash=purchase.cash??state.cash;
   state.businesses.push(purchase.business);
