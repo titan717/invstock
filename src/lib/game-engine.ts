@@ -110,7 +110,7 @@ function hydrateScrutiny(value:unknown,fallback:ScrutinyState):ScrutinyState {
     reviews:number(source.reviews),
   };
 }
-function hydrateLegacy(value:unknown,fallback:LegacyState):LegacyState {
+function hydrateLegacy(value:unknown):LegacyState {
   const source=object(value),upgrades=object(source.upgrades);
   return {
     points:number(source.points),lifetimePoints:number(source.lifetimePoints),rebirthCount:number(source.rebirthCount),
@@ -194,7 +194,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
     news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
     prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay),
-    scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy,defaults.legacy)
+    scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy)
   };
 }
 
