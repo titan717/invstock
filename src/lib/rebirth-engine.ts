@@ -22,7 +22,7 @@ export type RebirthPreview = {
   canRebirth: boolean;
   legacyPointsEarned: number;
   pointsAfterRebirth: number;
-  reset: { cash: number; stocks: number; crypto: number; businesses: number; properties: number; ordinaryProgress: boolean };
+  reset: { cash: number; stocks: number; crypto: number; stockPositions: number; cryptoPositions: number; businesses: number; properties: number; ordinaryProgress: boolean };
   preserve: { profileName: string; settings: RebirthSnapshot["settings"]; permanentAchievements: string[]; rebirthCount: number };
 };
 
