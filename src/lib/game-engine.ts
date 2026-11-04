@@ -420,7 +420,7 @@ export function resolveFinancialInvestigationAction(state:GameState,action:Inves
   const resolved=resolveInvestigation(state.scrutiny,action,challengeSuccessful);
   state.scrutiny={
     score:resolved.score,level:resolved.level,reasons:resolved.reasons,
-    investigation:resolved.investigation,complianceOfficer:resolved.complianceOfficer,reviews:resolved.reviews
+    investigation:resolved.investigation,complianceOfficer:resolved.complianceOfficer,reviews:resolved.reviews,lastActivityFingerprint:resolved.lastActivityFingerprint
   };
   const tax=action==="submit-records"||action==="challenge"&&challengeSuccessful?0:resolved.investigation?.estimatedTaxAdjustment??0;
   const totalDue=resolved.cashPenalty+resolved.legalCost+tax;
