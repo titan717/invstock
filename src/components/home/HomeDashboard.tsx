@@ -184,11 +184,11 @@ export function HomeDashboard({
           <span><b>Weekly challenge</b><small>Challenge highlights are being refreshed</small></span>
           <span className="home-placeholder-soon">Coming soon</span>
         </div>
-        <button type="button" onClick={onAddCash}>
+        <div className="home-placeholder-static">
           <span className="home-placeholder-icon"><span aria-hidden="true">＋</span></span>
-          <span><b>Virtual cash</b><small>Add funds to your buying power</small></span>
-          <ChevronRight size={17} />
-        </button>
+          <span><b>Add virtual cash</b><small>Top-up banner preview</small></span>
+          <span className="home-placeholder-soon">Coming soon</span>
+        </div>
       </section>
 
       <div className="home-positions-heading">
