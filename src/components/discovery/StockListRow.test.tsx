@@ -1,7 +1,18 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { createMarket } from "@/lib/market";
+
+beforeEach(() => {
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    value: class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  });
+});
 
 describe("StockListRow position presentation", () => {
   afterEach(cleanup);
