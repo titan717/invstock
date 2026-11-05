@@ -41,6 +41,10 @@ export function getMarketSession(marketMinute: number) {
       : 1440 - marketMinute + MARKET_OPEN_MINUTE };
 }
 
+export function useMarketSession(marketMinute: number) {
+  return useMemo(() => getMarketSession(marketMinute), [marketMinute]);
+}
+
 function durationLabel(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
@@ -110,7 +114,7 @@ export function HomeDashboard({
 }: Props) {
   const [speedMode, setSpeedMode] = useState<SpeedMode>("Live");
   const [speedSheetOpen, setSpeedSheetOpen] = useState(false);
-  const session = getMarketSession(marketMinute);
+  const session = useMarketSession(marketMinute);
   const money = (value: number) => formatMoney(value, currency);
   const changeText = `${dailyChange >= 0 ? "+" : "−"}${money(Math.abs(dailyChange))} (${dailyChangePct >= 0 ? "+" : "−"}${Math.abs(dailyChangePct).toFixed(2)}%) Today`;
   const selectedSpeed = speedOptions.find(option => option.mode === speedMode)!;
