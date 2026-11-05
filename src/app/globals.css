@@ -834,3 +834,8 @@ select:focus-visible {
   font-weight: 750;
   letter-spacing: .13em;
 }
+
+/* Options payoff slider: white thumb on a muted track, per spec. */
+.payoff-slider { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; background: #3A3A3C; outline: none; }
+.payoff-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; border: 0; }
+.payoff-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; border: 0; }

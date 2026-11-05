@@ -30,3 +30,25 @@ export function generateOptionChain(stock:Stock,daysToExpiry:number,type:OptionT
     return {strike:Number(strike.toFixed(2)),bid:Number(Math.max(.01,mark-spread/2).toFixed(2)),ask:Number((mark+spread/2).toFixed(2)),mark,last:Number(Math.max(.01,mark*(1+(pseudo-.5)*.035)).toFixed(2)),change:Number((stock.change*greeks.delta*.65+(pseudo-.5)*5).toFixed(2)),delta:Number(greeks.delta.toFixed(3)),gamma:Number(greeks.gamma.toFixed(4)),theta:Number(greeks.theta.toFixed(3)),vega:Number(greeks.vega.toFixed(3)),volume:Math.floor(500+pseudo*18000),openInterest:Math.floor(1200+pseudo*85000),impliedVolatility:Number((volatility*100).toFixed(1))};
   });
 }
+
+/** Black-Scholes value per share; at or past expiry it returns intrinsic value. */
+export function optionValue(spot:number,strike:number,daysToExpiry:number,volatility:number,type:OptionType):number {
+  if(daysToExpiry<=0)return Math.max(0,type==="call"?spot-strike:strike-spot);
+  return priceOption(spot,strike,daysToExpiry,volatility,.04,type).mark;
+}
+
+/** Greeks for any contract given its implied volatility (as a fraction). */
+export function optionGreeks(spot:number,strike:number,daysToExpiry:number,volatility:number,type:OptionType) {
+  const {delta,gamma,theta,vega}=priceOption(spot,strike,Math.max(1,daysToExpiry),volatility,.04,type);
+  return {delta,gamma,theta,vega};
+}
+
+/** Probability (risk-neutral) that a long contract finishes above break-even. */
+export function chanceOfProfit(spot:number,breakEven:number,daysToExpiry:number,volatility:number,type:OptionType):number {
+  const time=Math.max(1,daysToExpiry)/365,sigma=Math.max(.01,volatility),root=Math.sqrt(time);
+  const d2=(Math.log(spot/Math.max(.01,breakEven))+(.04-.5*sigma*sigma)*time)/(sigma*root);
+  return type==="call"?normalCdf(d2):normalCdf(-d2);
+}
+
+/** Simulated volatility used for engine-priced chains. */
+export const simulatedVolatility=(stock:Pick<Stock,"beta">)=>clamp(.25+stock.beta*.12,.18,.95);

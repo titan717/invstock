@@ -14,12 +14,13 @@ import { applyLiveQuotes, type LiveQuoteMap } from "@/lib/live-quotes";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { HomeDashboard } from "@/components/home/HomeDashboard";
+import { OptionsChain } from "@/components/options/OptionsChain";
+import { buyOption, sellOption, settleExpiredOptions } from "@/lib/options-trading";
 import { StockDetail } from "@/components/stock/StockDetail";
 import { FinancialsScreen } from "@/components/stock/FinancialsScreen";
 import { addPriceAlert, createSip, markRecentlyViewed, removePriceAlert, triggerPriceAlerts } from "@/lib/stock-plans";
 import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, sessionTick, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
-import { generateOptionChain } from "@/lib/options-engine";
 import TradeFlow from "@/components/trade/TradeFlow";
 import { applyStockTrade, clockStepMinutes, enqueueOrder, isMarketOpen, MINUTES_PER_DAY, processQueuedOrders, processSips, updateWatchlist } from "@/lib/trading-automation";
 import { createWorldNewsEvent, applyWorldNewsToMarket } from "@/lib/world-economy";
@@ -82,6 +83,7 @@ export default function InvStockApp(){
  const [selected,setSelected]=useState<Stock|null>(null);
  const [financialsOpen,setFinancialsOpen]=useState(false);
  const [optionTicker,setOptionTicker]=useState("NVDA");
+ const [optionDetailOpen,setOptionDetailOpen]=useState(false);
  const [modal,setModal]=useState<Modal>(null);
  const [newsIndex,setNewsIndex]=useState(0);
  const [search,setSearch]=useState("");
@@ -89,10 +91,6 @@ export default function InvStockApp(){
  const [discoveryAsset,setDiscoveryAsset]=useState<"Stocks"|"Crypto">("Stocks");
  const [timeframe,setTimeframe]=useState("ALL");
  const [newsFilter,setNewsFilter]=useState("All");
- const [optionExpiry,setOptionExpiry]=useState("4d · weekly");
- const [optionSide,setOptionSide]=useState<"Calls"|"Puts">("Calls");
- const [optionAction,setOptionAction]=useState<"Buy"|"Sell">("Buy");
- const [optionTab,setOptionTab]=useState("Prices");
  const [tradeSide,setTradeSide]=useState<"buy"|"sell">("buy");
  const [unit,setUnit]=useState<"Shares"|"Dollars">("Dollars");
  const [amount,setAmount]=useState("");
@@ -182,6 +180,9 @@ export default function InvStockApp(){
       const previousDay=nextGame.market.day;
       nextGame.market.minute=0;
       nextGame=advanceGameDay(nextGame,nextStocks).state;
+      const expiry=settleExpiredOptions(nextGame,nextStocks);
+      nextGame=expiry.state;
+      if(expiry.settled.length){const payout=expiry.settled.reduce((sum,item)=>sum+item.payout,0);setToast(`${expiry.settled.length} option contract${expiry.settled.length>1?"s":""} settled${payout>0?` for ${formatMoney(payout,nextGame.settings.currency)}`:" worthless"}`);}
       const worth=calculateNetWorth(nextGame,nextStocks);
       nextGame.dailyHistory=[...nextGame.dailyHistory.slice(-3649),{v:worth,t:previousDay+1}];
       const benchmark=nextStocks.find(stock=>stock.ticker==="SPY");
@@ -233,8 +234,6 @@ export default function InvStockApp(){
  const dailyChangePct=dailyChange/Math.max(1,previousClose)*100;
  const chartData=useMemo(()=>{const intraday=timeframe==="1D"?game.history.slice(-390):timeframe==="1W"?game.history.slice(-1950):null;const daily=timeframe==="1M"?game.dailyHistory.slice(-30):timeframe==="3M"?game.dailyHistory.slice(-90):timeframe==="1Y"?game.dailyHistory.slice(-252):timeframe==="ALL"?game.dailyHistory:[];const points=intraday??daily;const source=points.length?points:[{v:totalValue,t:game.market.day}];return source.map(point=>({label:"Day "+point.t,value:point.v}));},[game.history,game.dailyHistory,game.market.day,timeframe,totalValue]);
  const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;
- const optionExpiryDays=Number(optionExpiry.match(/(\d+)d/)?.[1]??4);
- const optionRows=useMemo(()=>generateOptionChain(stockByTicker(optionTicker),optionExpiryDays,optionSide==="Calls"?"call":"put"),[stocks,optionExpiryDays,optionSide,optionTicker]);
  
  const activeNews=game.news.length?game.news.map(event=>({source:event.source?(event.source+" · "+event.status+" · "+Math.round((event.reliability??1)*100)+"% reliable"):(event.type==="aftermath"?"Rumour desk":"Market simulator"),time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers,status:event.status,category:event.category,severity:event.severity,reliability:event.reliability})):newsItems;
  const filteredNews=activeNews.filter(item=>newsFilter==="My stocks"?(saved.includes(item.ticker)||Boolean(portfolio.holdings[item.ticker])):newsFilter==="Market"?(item.tickers?.length??1)>1:true);
@@ -295,12 +294,12 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const pageTitle=selected?selected.ticker:tab;
 
  return <main className="app-shell">
-  {(tab!=="Home"&&tab!=="Account"&&!selected)&&<header className="topbar"><button className="brand-lockup" aria-label="Go to STONKS home" onClick={()=>{setSelected(null);setTab("Home");}}><BrandMark/><span>STONKS</span></button><div className="topbar-actions"><button className="icon-button" aria-label="Search stocks" onClick={()=>{setSelected(null);setTab("Discovery");setSearch("");}}><Search size={19}/></button><button className="speed-chip" aria-label="Change simulation speed" onClick={cycleSpeed}><Zap size={14}/>{game.settings.speed===0?"Paused":game.settings.speed+"×"}</button><button className="icon-button" aria-label="Notifications" onClick={()=>{setNewsFilter("All");setNewsIndex(0);setModal("news");}}><Bell size={19}/></button><button className="icon-button" aria-label="Open account profile" onClick={()=>{setSelected(null);setTab("Account");}}><BriefcaseBusiness size={18}/></button></div></header>}
+  {(tab!=="Home"&&tab!=="Account"&&tab!=="Options"&&!selected)&&<header className="topbar"><button className="brand-lockup" aria-label="Go to STONKS home" onClick={()=>{setSelected(null);setTab("Home");}}><BrandMark/><span>STONKS</span></button><div className="topbar-actions"><button className="icon-button" aria-label="Search stocks" onClick={()=>{setSelected(null);setTab("Discovery");setSearch("");}}><Search size={19}/></button><button className="speed-chip" aria-label="Change simulation speed" onClick={cycleSpeed}><Zap size={14}/>{game.settings.speed===0?"Paused":game.settings.speed+"×"}</button><button className="icon-button" aria-label="Notifications" onClick={()=>{setNewsFilter("All");setNewsIndex(0);setModal("news");}}><Bell size={19}/></button><button className="icon-button" aria-label="Open account profile" onClick={()=>{setSelected(null);setTab("Account");}}><BriefcaseBusiness size={18}/></button></div></header>}
   {selected?(financialsOpen?<FinancialsScreen ticker={selected.ticker} name={selected.name} onBack={()=>setFinancialsOpen(false)}/>:<StockDetail key={selected.ticker} stock={stockByTicker(selected.ticker)??selected} state={game} stocks={stocks} currency={game.settings.currency} saved={game.watchlist.includes(selected.ticker)} liveData={game.settings.liveData} backLabel={tab} onBack={closeDetail} onToggleSaved={()=>toggleSaved(selected.ticker)} onTrade={startTrade}
    onCreateSip={(amount,frequency)=>{try{commitGame(createSip(gameRef.current,selected.ticker,amount,frequency));setToast(`${frequency[0].toUpperCase()+frequency.slice(1)} SIP of ${formatMoney(amount,game.settings.currency)} started for ${selected.ticker}`);}catch(error){setToast(error instanceof Error?error.message:"Could not start SIP");}}}
    onAddAlert={target=>{try{commitGame(addPriceAlert(gameRef.current,selected.ticker,target,stockByTicker(selected.ticker).price));setToast(`Alert set for ${selected.ticker} at ${formatMoney(target,game.settings.currency)}`);}catch(error){setToast(error instanceof Error?error.message:"Could not set alert");}}}
    onRemoveAlert={id=>commitGame(removePriceAlert(gameRef.current,id))} onSearch={()=>{setSelected(null);setTab("Discovery");}} onOpenStock={openStock} onOpenFinancials={()=>setFinancialsOpen(true)} onOpenOptions={()=>{setOptionTicker(selected.ticker);setSelected(null);setTab("Options");}}/>)
-  :<>{tab!=="Home"&&tab!=="Account"&&<div className="page-heading"><div>{tab!=="Discovery"&&<p className="eyebrow">PAPER TRADING · SIMULATED MARKET</p>}<h1>{tab==="Discovery"?"Discover":tab}</h1></div></div>}
+  :<>{tab!=="Home"&&tab!=="Account"&&tab!=="Options"&&<div className="page-heading"><div>{tab!=="Discovery"&&<p className="eyebrow">PAPER TRADING · SIMULATED MARKET</p>}<h1>{tab==="Discovery"?"Discover":tab}</h1></div></div>}
   {tab==="Home"&&<HomeDashboard
     marketMinute={game.market.minute}
     totalValue={totalValue}
@@ -339,7 +338,9 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onStockSelect={openStock}
     onCryptoTrade={performCryptoTrade}
   />}
-  {tab==="Options"&&<section className="options-view"><div className="options-header"><div><p className="eyebrow">OPTIONS MARKET</p><h2>Options chain</h2></div><button className="icon-button"><ListFilter size={18}/></button></div><div className="option-underlying" onClick={()=>gotoStock(optionTicker)}><StockLogo stock={stockByTicker(optionTicker)}/><span><b>{optionTicker}</b><small>{stockByTicker(optionTicker).name}</small></span><strong>{money(stockByTicker(optionTicker).price)}<small className="gain">{signed(stockByTicker(optionTicker).change)}</small></strong><ChevronDown size={17}/></div><div className="expiry-strip">{["4d · weekly","11d · 2 weeks","18d · 3 weeks","25d · monthly"].map(e=><button key={e} className={optionExpiry===e?"selected":""} onClick={()=>setOptionExpiry(e)}>{e}</button>)}</div><div className="options-controls"><div className="segmented">{(["Buy","Sell"] as const).map(v=><button key={v} className={optionAction===v?"selected":""} onClick={()=>setOptionAction(v)}>{v}</button>)}</div><div className="segmented">{(["Calls","Puts"] as const).map(v=><button key={v} className={optionSide===v?"selected":""} onClick={()=>setOptionSide(v)}>{v}</button>)}</div></div><div className="option-tabs">{["Prices","Activity","Greeks"].map(v=><button key={v} className={optionTab===v?"selected":""} onClick={()=>setOptionTab(v)}>{v}</button>)}</div><div className="option-table-wrap"><table className="option-table"><thead><tr>{optionTab==="Greeks"?<><th>Strike</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th><th>IV</th></>:optionTab==="Activity"?<><th>Strike</th><th>Volume</th><th>Open int.</th><th>Last</th><th>% Chg</th><th>IV</th></>:<><th>Strike</th><th>Bid</th><th>Ask</th><th>Mark</th><th>Last</th><th>% Chg</th></>}</tr></thead><tbody>{optionRows.map((r,i)=><Fragment key={r.strike}>{i===7&&<tr className="share-divider"><td colSpan={6}><span>Share price {money(stockByTicker(optionTicker).price)}</span></td></tr>}<tr><td>{money(r.strike)}</td>{optionTab==="Greeks"?<><td>{r.delta.toFixed(3)}</td><td>{r.gamma.toFixed(4)}</td><td>{r.theta.toFixed(3)}</td><td>{r.vega.toFixed(3)}</td><td>{r.impliedVolatility.toFixed(1)}%</td></>:optionTab==="Activity"?<><td>{r.volume.toLocaleString()}</td><td>{r.openInterest.toLocaleString()}</td><td>{money(r.last)}</td><td className={r.change>=0?"gain":"loss"}>{signed(r.change)}</td><td>{r.impliedVolatility.toFixed(1)}%</td></>:<><td className={optionAction==="Sell"?"gain":"quote-muted"}>{money(r.bid)}</td><td className={optionAction==="Buy"?"gain":"quote-muted"}>{money(r.ask)}</td><td className={r.change>=0?"gain":"loss"}>{money(r.mark)}</td><td>{money(r.last)}</td><td className={r.change>=0?"gain":"loss"}>{signed(r.change)}</td></>}</tr></Fragment>)}</tbody></table></div><p className="sim-note"><ShieldCheck size={15}/> {optionAction==="Buy"?"Buy-side estimate uses the ask.":"Sell-side estimate uses the bid."} Simulated options quotes for learning only; no real contracts are traded.</p></section>}
+  {tab==="Options"&&<OptionsChain stock={stockByTicker(optionTicker)??stocks[0]} stocks={stocks} state={game} currency={game.settings.currency} liveData={game.settings.liveData} marketOpen={isMarketOpen(game)} onDetailChange={setOptionDetailOpen} onChangeTicker={setOptionTicker} onOpenStock={openStock}
+   onBuy={order=>{const result=buyOption(gameRef.current,order);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Bought ${order.contracts} ${order.ticker} ${formatMoney(order.strike,game.settings.currency)} ${order.type} contract${order.contracts>1?"s":""} for ${formatMoney(result.amount,game.settings.currency)}`);return true;}}
+   onSell={(id,contracts,price)=>{const result=sellOption(gameRef.current,id,contracts,price);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Sold ${contracts} contract${contracts>1?"s":""} for ${formatMoney(result.amount,game.settings.currency)}`);return true;}}/>}
   {tab==="News"&&<section className="news-view"><div className="news-tabs">{["All","My stocks","Market"].map(v=><button key={v} className={newsFilter===v?"selected":""} onClick={()=>setNewsFilter(v)}>{v}</button>)}</div>{filteredNews.map((item,i)=><button className="news-card" key={item.title} onClick={()=>{setNewsIndex(i);setModal("news");}}><div className="news-source"><i className={item.tone==="up"?"up-dot":"down-dot"}/>{item.source}<span>· {item.time}</span></div><b>{item.title}</b><div className="news-bottom"><span>{item.ticker} · Simulated market news</span><CompanyLogo ticker={item.ticker} name={stockByTicker(item.ticker).name} size={32}/></div></button>)}</section>}
   {tab==="Account"&&settingsOpen&&<SettingsScreen
     settings={game.settings}
@@ -371,7 +372,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     empirePanels={<AccountGamePanels key={accountInitialPanel} initialPanel={accountInitialPanel} state={game} stocks={stocks} onBank={performBankAction} onBuilding={performBuildingAction} onCryptoTrade={performCryptoTrade} onBusinessBuy={performBusinessBuy} onBusinessHire={performBusinessHire} onBusinessFire={performBusinessFire} onBusinessPromote={performBusinessPromote} onBusinessUpgrade={performBusinessUpgrade} onBusinessStrategy={performBusinessStrategy} onBusinessRelocate={performBusinessRelocate} onBusinessSell={performBusinessSell} onPropertyBuy={performPropertyBuy} onPropertyUpgrade={performPropertyUpgrade} onPropertySell={performPropertySell} onComplianceReview={performComplianceReview} onComplianceHire={performComplianceHire} onInvestigationResolve={performInvestigationResolve} onLegacyUpgrade={performLegacyUpgrade} onRebirth={performRebirth} onSpeed={changeSpeed} onSetting={changeSetting} onImport={importSave} onExport={exportSave} onReset={resetGame}/>}
   />}
   </>}
-  {!selected&&!(tab==="Account"&&settingsOpen)&&<BottomNav badges={{Account:game.missions.some(mission=>!mission.claimed&&mission.progress>=mission.target)}} active={tab} onChange={(nextTab)=>{if(nextTab==="Account"){openAccount("root");return;}setTab(nextTab);}}/>}
+  {!selected&&!(tab==="Account"&&settingsOpen)&&!(tab==="Options"&&optionDetailOpen)&&<BottomNav badges={{Account:game.missions.some(mission=>!mission.claimed&&mission.progress>=mission.target)}} active={tab} onChange={(nextTab)=>{if(nextTab==="Account"){openAccount("root");return;}setTab(nextTab);}}/>}
   {modal==="trade"&&selected&&<div className="fixed inset-0 z-50 overflow-y-auto bg-black" role="dialog" aria-modal="true" aria-label={`${tradeSide==="buy"?"Buy":"Sell"} ${selected.ticker}`}><TradeFlow
     key={selected.ticker+tradeSide}
     ticker={selected.ticker}
