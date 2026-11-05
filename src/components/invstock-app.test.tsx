@@ -47,7 +47,7 @@ describe("InvStock save restoration", () => {
     const nameInput = await screen.findByLabelText("Your name");
     fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
     fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Discovery" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discover" }));
 
     expect(screen.getByRole("heading", { name: "Discover" })).toBeTruthy();
     expect(screen.getByPlaceholderText("Search companies or tickers")).toBeTruthy();
