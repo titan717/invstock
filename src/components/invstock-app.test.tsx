@@ -74,7 +74,7 @@ describe("InvStock save restoration", () => {
     fireEvent.click(screen.getByRole("button", { name: /Back to/ }));
 
     fireEvent.click(screen.getAllByRole("button", { name: "Account" }).find(button => button.classList.contains("nav-item"))!);
-    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(Array.from(container.querySelectorAll(".game-panel-nav button")).find(button => button.textContent === "Settings")!);
     fireEvent.click(screen.getByRole("button", { name: "Reset simulator" }));
     fireEvent.click(screen.getByRole("button", { name: "Yes, reset everything" }));
 
