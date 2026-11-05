@@ -134,7 +134,7 @@ export function HomeDashboard({
           </p>
         </div>
         <div className="home-header-actions">
-          <button type="button" className="home-speed-button" aria-label="Market speed" onClick={() => setSpeedSheetOpen(true)}>
+          <button type="button" className="home-speed-button tabular-nums" aria-label="Market speed" onClick={() => setSpeedSheetOpen(true)}>
             {selectedSpeed.short}
           </button>
           <button type="button" className="home-settings-button" aria-label="Settings" onClick={onSettings}>
@@ -160,7 +160,7 @@ export function HomeDashboard({
           <button
             type="button"
             key={value}
-            className={timeframe === value ? "selected" : ""}
+            className={`tabular-nums${timeframe === value ? " selected" : ""}`}
             aria-pressed={timeframe === value}
             onClick={() => onTimeframeChange(value)}
           >
