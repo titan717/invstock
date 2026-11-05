@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Coins, Search, TrendingUp, X } from "lucide-react";
 import { CryptoDiscovery } from "@/components/market/CryptoDiscovery";
 import { StockListRow } from "@/components/discovery/StockListRow";
@@ -22,6 +22,8 @@ type Props = {
   onCryptoTrade: (symbol: string, side: "buy" | "sell", quantity: number) => void;
 };
 
+type ExpandedSection = "gainers" | "losers" | "active" | null;
+
 function SectionHeading({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
     <div className="discovery-section-heading">
@@ -35,13 +37,60 @@ export function DiscoveryPage({
   stocks, state, currency, search, onSearchChange, sector, onSectorChange,
   asset, onAssetChange, onStockSelect, onCryptoTrade
 }: Props) {
-  const filtered = useMemo(() => stocks.filter(stock =>
-    (sector === "All" || stock.sector === sector) &&
-    `${stock.ticker} ${stock.name}`.toLowerCase().includes(search.toLowerCase())
-  ), [stocks, sector, search]);
-  const gainers = useMemo(() => [...stocks].sort((a, b) => b.change - a.change).slice(0, 5), [stocks]);
-  const losers = useMemo(() => [...stocks].sort((a, b) => a.change - b.change).slice(0, 5), [stocks]);
-  const active = useMemo(() => [...stocks].sort((a, b) => b.volume - a.volume).slice(0, 5), [stocks]);
+  const [expandedSection, setExpandedSection] = useState<ExpandedSection>(null);
+  const normalizedSearch = search.trim().toLowerCase();
+  const searchActive = normalizedSearch.length > 0;
+
+  const sectorStocks = useMemo(
+    () => stocks.filter(stock => sector === "All" || stock.sector === sector),
+    [stocks, sector]
+  );
+  const searchMatches = useMemo(
+    () => sectorStocks.filter(stock => `${stock.ticker} ${stock.name}`.toLowerCase().includes(normalizedSearch)),
+    [sectorStocks, normalizedSearch]
+  );
+  const gainers = useMemo(
+    () => [...sectorStocks].sort((a, b) => b.change - a.change),
+    [sectorStocks]
+  );
+  const losers = useMemo(
+    () => [...sectorStocks].sort((a, b) => a.change - b.change),
+    [sectorStocks]
+  );
+  const active = useMemo(
+    () => [...sectorStocks].sort((a, b) => b.volume - a.volume),
+    [sectorStocks]
+  );
+
+  const renderRankedSection = (
+    key: Exclude<ExpandedSection, null>,
+    title: string,
+    rankedStocks: Stock[],
+    mode: "price" | "volume" = "price"
+  ) => {
+    const expanded = expandedSection === key;
+    const visibleStocks = expanded ? rankedStocks : rankedStocks.slice(0, 5);
+    return (
+      <>
+        <SectionHeading
+          title={title}
+          action={expanded ? "Show less" : "See all"}
+          onAction={() => setExpandedSection(current => current === key ? null : key)}
+        />
+        <div className="discovery-stock-list">
+          {visibleStocks.map(stock => (
+            <StockListRow
+              key={stock.ticker}
+              stock={stock}
+              currency={currency}
+              mode={mode}
+              onClick={() => onStockSelect(stock)}
+            />
+          ))}
+        </div>
+      </>
+    );
+  };
 
   return (
     <section className="discovery-view" aria-label="Discover investments">
@@ -54,7 +103,11 @@ export function DiscoveryPage({
             onChange={event => onSearchChange(event.target.value)}
             placeholder="Search companies or tickers"
           />
-          {search && <button type="button" aria-label="Clear search" onClick={() => onSearchChange("")}><X size={16} /></button>}
+          {search && (
+            <button type="button" aria-label="Clear search" onClick={() => onSearchChange("")}>
+              <X size={16} />
+            </button>
+          )}
         </label>
       )}
 
@@ -69,29 +122,51 @@ export function DiscoveryPage({
 
       {asset === "Crypto" ? (
         <CryptoDiscovery state={state} onTrade={onCryptoTrade} />
+      ) : searchActive ? (
+        <section className="discovery-search-results" aria-label="Search results">
+          <SectionHeading title="Search results" />
+          <div className="discovery-stock-list">
+            {searchMatches.map(stock => (
+              <StockListRow
+                key={stock.ticker}
+                stock={stock}
+                currency={currency}
+                onClick={() => onStockSelect(stock)}
+              />
+            ))}
+            {!searchMatches.length && <p className="discovery-empty-state">No symbols found</p>}
+          </div>
+        </section>
       ) : (
         <>
           <div className="sector-strip" aria-label="Filter by sector">
             {sectors.map(value => (
-              <button type="button" key={value} className={sector === value ? "selected" : ""} aria-pressed={sector === value} onClick={() => onSectorChange(value)}>
+              <button
+                type="button"
+                key={value}
+                className={sector === value ? "selected" : ""}
+                aria-pressed={sector === value}
+                onClick={() => onSectorChange(value)}
+              >
                 {value}
               </button>
             ))}
           </div>
 
-          <SectionHeading title="Top gainers" action="See all" onAction={() => onSectorChange("All")} />
-          <div className="discovery-stock-list">{gainers.map(stock => <StockListRow key={stock.ticker} stock={stock} currency={currency} onClick={() => onStockSelect(stock)} />)}</div>
-
-          <SectionHeading title="Top losers" action="See all" onAction={() => onSectorChange("All")} />
-          <div className="discovery-stock-list">{losers.map(stock => <StockListRow key={stock.ticker} stock={stock} currency={currency} onClick={() => onStockSelect(stock)} />)}</div>
-
-          <SectionHeading title="Most active" action="See all" onAction={() => onSearchChange("")} />
-          <div className="discovery-stock-list">{active.map(stock => <StockListRow key={stock.ticker} stock={stock} currency={currency} mode="volume" onClick={() => onStockSelect(stock)} />)}</div>
+          {renderRankedSection("gainers", "Top gainers", gainers)}
+          {renderRankedSection("losers", "Top losers", losers)}
+          {renderRankedSection("active", "Most active", active, "volume")}
 
           <SectionHeading title={sector === "All" ? "Explore stocks" : sector} />
           <div className="discovery-stock-list">
-            {filtered.slice(0, 12).map(stock => <StockListRow key={stock.ticker} stock={stock} currency={currency} onClick={() => onStockSelect(stock)} />)}
-            {!filtered.length && <p className="empty-state">No stocks match that search. Try another ticker or sector.</p>}
+            {sectorStocks.slice(0, 12).map(stock => (
+              <StockListRow
+                key={stock.ticker}
+                stock={stock}
+                currency={currency}
+                onClick={() => onStockSelect(stock)}
+              />
+            ))}
           </div>
         </>
       )}
