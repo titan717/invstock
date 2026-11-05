@@ -155,7 +155,7 @@ export function DiscoveryPage({
 
           {renderRankedSection("gainers", "Top gainers", gainers)}
           {renderRankedSection("losers", "Top losers", losers)}
-          {renderRankedSection("active", "Most active", active, "volume")}
+          {renderRankedSection("active", "Most active", active)}
 
           <SectionHeading title={sector === "All" ? "Explore stocks" : sector} />
           <div className="discovery-stock-list">
