@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { createMarket } from "@/lib/market";
+import { formatMoney } from "@/lib/currency";
 
 beforeEach(() => {
   Object.defineProperty(globalThis, "ResizeObserver", {
@@ -32,7 +33,7 @@ describe("StockListRow position presentation", () => {
 
     expect(screen.getByText(stock.name)).toBeTruthy();
     expect(screen.getByText("2.500 shares")).toBeTruthy();
-    expect(screen.getByText("$"+(stock.price * 2.5).toFixed(2))).toBeTruthy();
+    expect(screen.getByRole("button").getAttribute("aria-label")).toContain(formatMoney(stock.price * 2.5, "USD"));
     expect(screen.getByText("+4.20%")).toBeTruthy();
   });
 });
