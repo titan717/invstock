@@ -66,6 +66,7 @@ export default function InvStockApp(){
  const [stocks,setStocks]=useState<Stock[]>(()=>createMarket());
  const [portfolio,setPortfolio]=useState<Portfolio>(initialPortfolio);
  const [game,setGame]=useState<GameState>(()=>gameFromPortfolio(initialPortfolio,createMarket()));
+ const saved=game.watchlist;
  const stocksRef=useRef(stocks);
  const gameRef=useRef(game);
  const [selected,setSelected]=useState<Stock|null>(null);
@@ -85,7 +86,6 @@ export default function InvStockApp(){
  const [amount,setAmount]=useState("");
  const [profileInput,setProfileInput]=useState("");
  const [toast,setToast]=useState("");
- const [saved,setSaved]=useState<string[]>(["MSFT","META","GOOGL","COIN","SHOP"]);
  const [ready,setReady]=useState(false);
  const [accountInitialPanel,setAccountInitialPanel]=useState<"Bank"|"Settings">("Bank");
  const money=(value:number)=>formatMoney(value,game.settings.currency);
