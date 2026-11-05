@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { createGameState } from "@/lib/game-engine";
 import { createMarket } from "@/lib/market";
@@ -31,6 +31,16 @@ const props = {
 };
 
 describe("Discover stocks", () => {
+  beforeEach(() => {
+    Object.defineProperty(globalThis, "ResizeObserver", {
+      configurable: true,
+      value: class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    });
+  });
   afterEach(cleanup);
 
   it("hides market sections while searching and shows only matching stock rows", () => {
