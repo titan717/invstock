@@ -10,6 +10,7 @@ import { AccountGamePanels } from "@/components/account/AccountGamePanels";
 import { AccountScreen, type AccountView } from "@/components/account/AccountScreen";
 import { SettingsScreen, speedLabel, type SettingKey, type SettingValue } from "@/components/settings/SettingsScreen";
 import { startAmbientMusic, stopAmbientMusic } from "@/lib/ambient-music";
+import { applyLiveQuotes, type LiveQuoteMap } from "@/lib/live-quotes";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { HomeDashboard } from "@/components/home/HomeDashboard";
@@ -95,6 +96,32 @@ export default function InvStockApp(){
  const [accountInitialPanel,setAccountInitialPanel]=useState<"Bank"|"Settings">("Bank");
  const [accountEntry,setAccountEntry]=useState<{view:AccountView;nonce:number}>({view:"root",nonce:0});
  const [settingsOpen,setSettingsOpen]=useState(false);
+ const liveQuotesRef=useRef<LiveQuoteMap|null>(null);
+ const [liveStatus,setLiveStatus]=useState<string|undefined>(undefined);
+ useEffect(()=>{
+  if(!ready)return;
+  if(!game.settings.liveData){liveQuotesRef.current=null;setLiveStatus("Off");return;}
+  let cancelled=false;
+  const poll=async()=>{
+   if(document.hidden)return;
+   try{
+    const response=await fetch("/api/quotes?symbols="+stocksRef.current.map(stock=>stock.ticker).join(","),{cache:"no-store"});
+    if(!response.ok)throw new Error("quote request failed");
+    const payload=await response.json() as {quotes?:LiveQuoteMap};
+    if(cancelled)return;
+    const quotes=payload.quotes??{};
+    const count=Object.keys(quotes).length;
+    if(!count){setLiveStatus("Unavailable");return;}
+    liveQuotesRef.current=quotes;
+    const nextStocks=applyLiveQuotes(stocksRef.current,quotes);
+    if(nextStocks!==stocksRef.current){stocksRef.current=nextStocks;setStocks(nextStocks);}
+    setLiveStatus(count+" live");
+   }catch{if(!cancelled)setLiveStatus("Unavailable");}
+  };
+  void poll();
+  const id=window.setInterval(()=>void poll(),15000);
+  return()=>{cancelled=true;window.clearInterval(id);};
+ },[ready,game.settings.liveData]);
  const startingValue=useMemo(()=>calculateNetWorth(gameFromPortfolio(initialPortfolio,stocks),stocks),[stocks]);
  useEffect(()=>{if(!ready||!game.settings.music)return;startAmbientMusic();return()=>stopAmbientMusic();},[ready,game.settings.music]);
  const openSettings=()=>{setSettingsOpen(true);setSelected(null);setTab("Account");};
@@ -182,6 +209,8 @@ export default function InvStockApp(){
   const absoluteTick=sessionTick(nextGame.market.day,nextGame.market.minute);
   resolvePendingRumours(nextGame,nextStocks,absoluteTick);
   evaluateAchievements(nextGame,nextStocks);updateProgression(nextGame,nextStocks,nextGame.prngSeed);
+  // Real-time exchange quotes override simulated prices for listed tickers.
+  if(nextGame.settings.liveData)nextStocks=applyLiveQuotes(nextStocks,liveQuotesRef.current);
   nextGame.market.stocks=Object.fromEntries(nextStocks.map(stock=>[stock.ticker,stock]));
   stocksRef.current=nextStocks;gameRef.current=nextGame;
   setStocks(nextStocks);setGame(nextGame);setPortfolio(portfolioFromGame(nextGame));
@@ -303,6 +332,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
   {tab==="Account"&&settingsOpen&&<SettingsScreen
     settings={game.settings}
     startingValue={startingValue}
+    liveStatus={liveStatus}
     onBack={()=>setSettingsOpen(false)}
     onSpeed={changeSpeed}
     onSetting={changeSetting}
