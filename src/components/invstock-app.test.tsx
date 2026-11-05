@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { within, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import InvStockApp from "@/components/invstock-app";
 
@@ -43,10 +43,7 @@ describe("InvStock save restoration", () => {
   });
   it("renders the Discover title and the specified compact stock-row structure", async () => {
     const { container } = render(<InvStockApp />);
-
-    const nameInput = await screen.findByLabelText("Your name");
-    fireEvent.change(nameInput, { target: { value: "Demo Investor" } });
-    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
+    await screen.findAllByRole("button", { name: "Discover" });
     fireEvent.click(screen.getAllByRole("button", { name: "Discover" }).find((button) => button.classList.contains("nav-item"))!);
 
     expect(screen.getByRole("heading", { name: "Discover" })).toBeTruthy();
@@ -59,9 +56,7 @@ describe("InvStock save restoration", () => {
   });
   it("keeps the Home watchlist identical to game.watchlist after a simulator reset", async () => {
     const { container } = render(<InvStockApp />);
-    const nameInput = await screen.findByLabelText("Your name");
-    fireEvent.change(nameInput, { target: { value: "Watchlist Tester" } });
-    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
+    await screen.findAllByRole("button", { name: "Discover" });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Discover" }).find(button => button.classList.contains("nav-item"))!);
     const aaplRow = await screen.findByText("AAPL");
@@ -75,9 +70,9 @@ describe("InvStock save restoration", () => {
 
     fireEvent.click(screen.getAllByRole("button", { name: "Account" }).find(button => button.classList.contains("nav-item"))!);
     fireEvent.click(screen.getByRole("button", { name: "Open settings" }));
-    fireEvent.click(Array.from(container.querySelectorAll(".game-panel-nav button")).find(button => button.textContent === "Settings")!);
-    fireEvent.click(screen.getByRole("button", { name: "Reset simulator" }));
-    fireEvent.click(screen.getByRole("button", { name: "Yes, reset everything" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset account" }));
+    fireEvent.click(within(screen.getByRole("dialog", { name: "Reset your account?" })).getByRole("button", { name: "Reset" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back to account" }));
 
     await waitFor(() => {
       const persisted = JSON.parse(localStorage.getItem("invstock-game-v2") ?? "null");

@@ -18,7 +18,7 @@ export function sessionTick(day:number,minute:number):number {
 export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
-export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty };
+export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty; notifications: boolean; music: boolean; /** Use real-time exchange quotes for listed tickers. */ liveData: boolean };
 export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean; source?: string; category?: string; affectedIndustries?: string[]; affectedSectors?: string[]; reliability?: number; status?: "developing"|"confirmed"|"unverified"; severity?: "low"|"moderate"|"high"|"critical"; expiresDay?: number; demandImpact?: number; costImpact?: number };
 export type GameMission={id:string;title:string;description:string;metric:"trades"|"properties"|"growth";target:number;progress:number;reward:number;xpReward:number;claimed:boolean};
 export type ChallengeBot={name:string;returnPct:number;risk:number};
@@ -90,7 +90,7 @@ export const ACHIEVEMENTS = [
   {id:"Landlord",description:"Buy your first property."},
   {id:"Millionaire",description:"Reach one million dollars in net worth."}
 ] as const;
-const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal"};
+const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal",notifications:true,music:false,liveData:true};
 export const DIFFICULTY_RULES: Record<Difficulty,{marketVolatility:number;businessIncome:number;buildingCost:number;savingsApy:number;loanApr:number;creditLimit:number;missedPaymentPenalty:number}> = {
   easy:{marketVolatility:.75,businessIncome:1.2,buildingCost:.85,savingsApy:.04,loanApr:.08,creditLimit:.45,missedPaymentPenalty:.005},
   normal:{marketVolatility:1,businessIncome:1,buildingCost:1,savingsApy:.035,loanApr:.12,creditLimit:.35,missedPaymentPenalty:.01},

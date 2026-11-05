@@ -8,6 +8,8 @@ import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { initialPortfolio, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
 import { AccountScreen, type AccountView } from "@/components/account/AccountScreen";
+import { SettingsScreen, speedLabel, type SettingKey, type SettingValue } from "@/components/settings/SettingsScreen";
+import { startAmbientMusic, stopAmbientMusic } from "@/lib/ambient-music";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { HomeDashboard } from "@/components/home/HomeDashboard";
@@ -22,7 +24,8 @@ import { advanceCryptoMarket } from "@/lib/crypto";
 import type { BusinessStrategy, EmployeeRole } from "@/lib/business-engine";
 
 type Tab = "Home" | "Discovery" | "Options" | "News" | "Account";
-type Modal = "trade" | "news" | "profile" | null;
+type Modal = "trade" | "news" | null;
+const TICK_MS = 1500;
 const money = (n:number,currency:CurrencyCode="USD") => formatMoney(n,currency);
 const signed = (n:number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}%`;
 function portfolioFromGame(state:GameState):Portfolio {
@@ -87,12 +90,15 @@ export default function InvStockApp(){
  const [tradeSide,setTradeSide]=useState<"buy"|"sell">("buy");
  const [unit,setUnit]=useState<"Shares"|"Dollars">("Dollars");
  const [amount,setAmount]=useState("");
- const [profileInput,setProfileInput]=useState("");
  const [toast,setToast]=useState("");
  const [ready,setReady]=useState(false);
  const [accountInitialPanel,setAccountInitialPanel]=useState<"Bank"|"Settings">("Bank");
  const [accountEntry,setAccountEntry]=useState<{view:AccountView;nonce:number}>({view:"root",nonce:0});
- const openAccount=(view:AccountView,panel:"Bank"|"Settings"="Bank")=>{setAccountInitialPanel(panel);setAccountEntry(entry=>({view,nonce:entry.nonce+1}));setSelected(null);setTab("Account");};
+ const [settingsOpen,setSettingsOpen]=useState(false);
+ const startingValue=useMemo(()=>calculateNetWorth(gameFromPortfolio(initialPortfolio,stocks),stocks),[stocks]);
+ useEffect(()=>{if(!ready||!game.settings.music)return;startAmbientMusic();return()=>stopAmbientMusic();},[ready,game.settings.music]);
+ const openSettings=()=>{setSettingsOpen(true);setSelected(null);setTab("Account");};
+ const openAccount=(view:AccountView,panel:"Bank"|"Settings"="Bank")=>{setSettingsOpen(false);setAccountInitialPanel(panel);setAccountEntry(entry=>({view,nonce:entry.nonce+1}));setSelected(null);setTab("Account");};
  const money=(value:number)=>formatMoney(value,game.settings.currency);
  const fmtCompact=(value:number)=>formatCompactMoney(value,game.settings.currency);
 
@@ -105,7 +111,7 @@ export default function InvStockApp(){
   if(legacy&&!legacyMigrated){restored=migrateLegacySave(JSON.parse(legacy),stocksRef.current);localStorage.setItem("invstock-legacy-migrated","true");}
   else if(savedGame){const parsed=JSON.parse(savedGame);restored=hydrateGameState(parsed,stocksRef.current);}
   else if(current){const data=JSON.parse(current);if(data.portfolio)setPortfolio(data.portfolio);if(data.portfolio){restored=gameFromPortfolio(data.portfolio,stocksRef.current);if(Array.isArray(data.saved))restored.watchlist=data.saved.filter((ticker:unknown):ticker is string=>typeof ticker==="string");}}
-  if(restored){const offline=applyOfflineBusinessEarnings(restored,restored.lastActiveAt>0?Date.now()-restored.lastActiveAt:0);if(offline.earned>0)setToast("Your empire earned "+formatMoney(offline.earned,restored.settings.currency)+" while you were away.");const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));setProfileInput(restored.profileName);if(!restored.profileName)setModal("profile");}else setModal("profile");
+  if(restored){const offline=applyOfflineBusinessEarnings(restored,restored.lastActiveAt>0?Date.now()-restored.lastActiveAt:0);if(offline.earned>0)setToast("Your empire earned "+formatMoney(offline.earned,restored.settings.currency)+" while you were away.");const restoredStocks=restoreMarketSnapshot(restored,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);restored.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));gameRef.current=restored;setGame(restored);setPortfolio(portfolioFromGame(restored));}
  }catch{setToast("A saved game could not be fully restored. Your current session remains available.");}
  setReady(true);},[]);
  useEffect(()=>{if(!ready)return;try{
@@ -114,13 +120,17 @@ export default function InvStockApp(){
   localStorage.setItem("invstock-game-v2",JSON.stringify(persisted));
   localStorage.setItem("invstock-v2",JSON.stringify({portfolio,saved:game.watchlist}));
  }catch{}},[portfolio,ready,game,stocks]);
- useEffect(()=>{const id=window.setInterval(()=>{
+ useEffect(()=>{let lastTickAt=Date.now();let carry=0;const id=window.setInterval(()=>{
+  const now=Date.now();const elapsed=Math.min(15000,Math.max(0,now-lastTickAt));lastTickAt=now;
   if(document.hidden)return;
   let nextGame=structuredClone(gameRef.current);
   const speed=nextGame.settings.speed;
   if(speed<=0)return;
+  // Speed is market minutes per real minute (Live = 1, Fast = 60, Turbo = 390).
+  carry+=speed*elapsed/60000;
+  const steps=Math.floor(carry);carry-=steps;
   let nextStocks=stocksRef.current;
-  for(let step=0;step<speed;step++){
+  for(let step=0;step<steps;step++){
     const marketSeed=nextGame.prngSeed>>>0;
     const sessionOpen=isMarketOpen(nextGame);
     // Stock prices, business income and portfolio history only move during the trading session.
@@ -165,6 +175,7 @@ export default function InvStockApp(){
     const seed=nextGame.prngSeed;
     const event=createMarketEvent(nextGame,nextStocks,seed);
     nextStocks=applyMarketEvent(nextGame,nextStocks,event);
+    if(nextGame.settings.notifications&&event.headline)setToast(event.headline);
     nextGame.prngSeed=(seed*1664525+1013904223)>>>0;
     nextGame.eventsNextAt=Date.now()+20000+(nextGame.prngSeed%40001);
   }
@@ -175,7 +186,7 @@ export default function InvStockApp(){
   stocksRef.current=nextStocks;gameRef.current=nextGame;
   setStocks(nextStocks);setGame(nextGame);setPortfolio(portfolioFromGame(nextGame));
 
- },4500);return()=>window.clearInterval(id);},[]);
+ },TICK_MS);return()=>window.clearInterval(id);},[]);
  useEffect(()=>{if(!selected)return;const latest=stocks.find(stock=>stock.ticker===selected.ticker);if(latest&&latest!==selected)setSelected(latest);},[stocks,selected]);
  useEffect(()=>{if(!toast)return;const id=window.setTimeout(()=>setToast(""),2600);return()=>window.clearTimeout(id);},[toast]);
 
@@ -235,12 +246,11 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const performRebirth=()=>{const result=rebirthGameAction(structuredClone(gameRef.current),stocksRef.current);if(!result.ok){setToast(result.reason);return;}const freshStocks=createMarket();result.state.market.stocks=Object.fromEntries(freshStocks.map(stock=>[stock.ticker,stock]));stocksRef.current=freshStocks;gameRef.current=result.state;setStocks(freshStocks);setGame(result.state);setPortfolio(portfolioFromGame(result.state));setToast(result.message??"Empire reborn.");};
 
  const performCryptoTrade=(symbol:string,side:"buy"|"sell",quantity:number)=>{const next=structuredClone(gameRef.current);const result=cryptoTradeAction(next,symbol,side,quantity);if(!result.ok){setToast(result.reason);return;}gameRef.current=result.state;setGame(result.state);setPortfolio(portfolioFromGame(result.state));playUiFeedback(result.state,side==="buy"?720:460);setToast(result.message??"Crypto order complete.");};
- const changeSpeed=(speed:number)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,speed}};gameRef.current=next;setGame(next);setToast(speed===0?"Simulation paused":`Simulation speed set to ${speed}×`);};
- const saveProfile=()=>{const name=profileInput.trim();if(!name){setToast("Please enter your name to continue.");return;}const next={...gameRef.current,profileName:name};gameRef.current=next;setGame(next);setModal(null);setToast("Welcome to STONKS, "+name+".");};
+ const changeSpeed=(speed:number)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,speed}};gameRef.current=next;setGame(next);setToast(speed===0?"Simulation paused":`Market speed set to ${speedLabel(speed)}`);};
  const cycleSpeed=()=>{const values=[0,1,2,5,60,390];const current=gameRef.current.settings.speed;changeSpeed(values[(values.indexOf(current)+1)%values.length]);};
- const changeSetting=(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,[key]:value}};gameRef.current=next;setGame(next);};
+ const changeSetting=(key:SettingKey,value:SettingValue)=>{const next={...gameRef.current,settings:{...gameRef.current.settings,[key]:value}};gameRef.current=next;setGame(next);};
  const exportSave=()=>{const payload=JSON.stringify({...gameRef.current,market:{...gameRef.current.market,stocks:Object.fromEntries(stocksRef.current.map(stock=>[stock.ticker,stock]))}},null,2);const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="invstock-save.json";anchor.click();URL.revokeObjectURL(url);};
- const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);const restoredStocks=restoreMarketSnapshot(imported,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);imported.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));localStorage.setItem("invstock-legacy-migrated","true");gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setProfileInput(imported.profileName);setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
+ const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);const restoredStocks=restoreMarketSnapshot(imported,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);imported.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));localStorage.setItem("invstock-legacy-migrated","true");gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
  const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);next.profileName=gameRef.current.profileName;gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
  const toggleSaved=(ticker:string)=>{const nextGame=updateWatchlist(gameRef.current,{type:"toggle",ticker});gameRef.current=nextGame;setGame(nextGame);};
  const gotoStock=(ticker:string)=>{const stock=stockByTicker(ticker);if(stock)openStock(stock);};
@@ -265,7 +275,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onStockSelect={openStock}
     onHistory={()=>setTab("Account")}
     onAddCash={()=>openAccount("empire","Bank")}
-    onSettings={()=>openAccount("empire","Settings")}
+    onSettings={openSettings}
     belowPositions={<>
       <details className="home-extras"><summary><span>Challenges & missions</span><ChevronDown size={16}/></summary><div className="home-extras-content">
         <div className="challenge-card"><div className="challenge-icon"><Trophy size={22}/></div><div className="challenge-copy"><b>Weekly trading challenge</b><p>{game.weeklyChallenge.joined?"You are competing against four trading bots. Your return: "+signed((totalValue/Math.max(1,game.weeklyChallenge.startValue)-1)*100)+".":"Join the weekly market challenge and compete against four simulated trading bots."}</p></div><button onClick={game.weeklyChallenge.joined?()=>setToast("Your leaderboard is shown below."):joinChallenge}>{game.weeklyChallenge.joined?"Joined":"Join challenge"} <ArrowRight size={16}/></button></div>
@@ -290,7 +300,19 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
   />}
   {tab==="Options"&&<section className="options-view"><div className="options-header"><div><p className="eyebrow">OPTIONS MARKET</p><h2>Options chain</h2></div><button className="icon-button"><ListFilter size={18}/></button></div><div className="option-underlying" onClick={()=>gotoStock("NVDA")}><StockLogo stock={stockByTicker("NVDA")}/><span><b>NVDA</b><small>Nvidia</small></span><strong>{money(stockByTicker("NVDA").price)}<small className="gain">{signed(stockByTicker("NVDA").change)}</small></strong><ChevronDown size={17}/></div><div className="expiry-strip">{["4d · weekly","11d · 2 weeks","18d · 3 weeks","25d · monthly"].map(e=><button key={e} className={optionExpiry===e?"selected":""} onClick={()=>setOptionExpiry(e)}>{e}</button>)}</div><div className="options-controls"><div className="segmented">{(["Buy","Sell"] as const).map(v=><button key={v} className={optionAction===v?"selected":""} onClick={()=>setOptionAction(v)}>{v}</button>)}</div><div className="segmented">{(["Calls","Puts"] as const).map(v=><button key={v} className={optionSide===v?"selected":""} onClick={()=>setOptionSide(v)}>{v}</button>)}</div></div><div className="option-tabs">{["Prices","Activity","Greeks"].map(v=><button key={v} className={optionTab===v?"selected":""} onClick={()=>setOptionTab(v)}>{v}</button>)}</div><div className="option-table-wrap"><table className="option-table"><thead><tr>{optionTab==="Greeks"?<><th>Strike</th><th>Delta</th><th>Gamma</th><th>Theta</th><th>Vega</th><th>IV</th></>:optionTab==="Activity"?<><th>Strike</th><th>Volume</th><th>Open int.</th><th>Last</th><th>% Chg</th><th>IV</th></>:<><th>Strike</th><th>Bid</th><th>Ask</th><th>Mark</th><th>Last</th><th>% Chg</th></>}</tr></thead><tbody>{optionRows.map((r,i)=><Fragment key={r.strike}>{i===7&&<tr className="share-divider"><td colSpan={6}><span>Share price {money(stockByTicker("NVDA").price)}</span></td></tr>}<tr><td>{money(r.strike)}</td>{optionTab==="Greeks"?<><td>{r.delta.toFixed(3)}</td><td>{r.gamma.toFixed(4)}</td><td>{r.theta.toFixed(3)}</td><td>{r.vega.toFixed(3)}</td><td>{r.impliedVolatility.toFixed(1)}%</td></>:optionTab==="Activity"?<><td>{r.volume.toLocaleString()}</td><td>{r.openInterest.toLocaleString()}</td><td>{money(r.last)}</td><td className={r.change>=0?"gain":"loss"}>{signed(r.change)}</td><td>{r.impliedVolatility.toFixed(1)}%</td></>:<><td className={optionAction==="Sell"?"gain":"quote-muted"}>{money(r.bid)}</td><td className={optionAction==="Buy"?"gain":"quote-muted"}>{money(r.ask)}</td><td className={r.change>=0?"gain":"loss"}>{money(r.mark)}</td><td>{money(r.last)}</td><td className={r.change>=0?"gain":"loss"}>{signed(r.change)}</td></>}</tr></Fragment>)}</tbody></table></div><p className="sim-note"><ShieldCheck size={15}/> {optionAction==="Buy"?"Buy-side estimate uses the ask.":"Sell-side estimate uses the bid."} Simulated options quotes for learning only; no real contracts are traded.</p></section>}
   {tab==="News"&&<section className="news-view"><div className="news-tabs">{["All","My stocks","Market"].map(v=><button key={v} className={newsFilter===v?"selected":""} onClick={()=>setNewsFilter(v)}>{v}</button>)}</div>{filteredNews.map((item,i)=><button className="news-card" key={item.title} onClick={()=>{setNewsIndex(i);setModal("news");}}><div className="news-source"><i className={item.tone==="up"?"up-dot":"down-dot"}/>{item.source}<span>· {item.time}</span></div><b>{item.title}</b><div className="news-bottom"><span>{item.ticker} · Simulated market news</span><CompanyLogo ticker={item.ticker} name={stockByTicker(item.ticker).name} size={32}/></div></button>)}</section>}
-  {tab==="Account"&&<AccountScreen
+  {tab==="Account"&&settingsOpen&&<SettingsScreen
+    settings={game.settings}
+    startingValue={startingValue}
+    onBack={()=>setSettingsOpen(false)}
+    onSpeed={changeSpeed}
+    onSetting={changeSetting}
+    onAddCash={()=>openAccount("empire","Bank")}
+    onUnavailable={(feature)=>setToast(feature+" is not available in the simulator yet.")}
+    onExport={exportSave}
+    onImport={importSave}
+    onReset={resetGame}
+  />}
+  {tab==="Account"&&!settingsOpen&&<AccountScreen
     key={accountEntry.nonce}
     initialView={accountEntry.view}
     state={game}
@@ -301,13 +323,13 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onClaimMission={claimMissionReward}
     onJoinChallenge={joinChallenge}
     onClaimChallenge={claimChallengeReward}
-    onOpenSettings={()=>openAccount("empire","Settings")}
+    onOpenSettings={openSettings}
     onAddCash={()=>openAccount("empire","Bank")}
     onUnavailable={(feature)=>setToast(feature+" is not available in the simulator yet.")}
     empirePanels={<AccountGamePanels key={accountInitialPanel} initialPanel={accountInitialPanel} state={game} stocks={stocks} onBank={performBankAction} onBuilding={performBuildingAction} onCryptoTrade={performCryptoTrade} onBusinessBuy={performBusinessBuy} onBusinessHire={performBusinessHire} onBusinessFire={performBusinessFire} onBusinessPromote={performBusinessPromote} onBusinessUpgrade={performBusinessUpgrade} onBusinessStrategy={performBusinessStrategy} onBusinessRelocate={performBusinessRelocate} onBusinessSell={performBusinessSell} onPropertyBuy={performPropertyBuy} onPropertyUpgrade={performPropertyUpgrade} onPropertySell={performPropertySell} onComplianceReview={performComplianceReview} onComplianceHire={performComplianceHire} onInvestigationResolve={performInvestigationResolve} onLegacyUpgrade={performLegacyUpgrade} onRebirth={performRebirth} onSpeed={changeSpeed} onSetting={changeSetting} onImport={importSave} onExport={exportSave} onReset={resetGame}/>}
   />}
   </>}
-  {!selected&&<BottomNav badges={{Account:game.missions.some(mission=>!mission.claimed&&mission.progress>=mission.target)}} active={tab} onChange={(nextTab)=>{if(nextTab==="Account"){openAccount("root");return;}setTab(nextTab);}}/>}
+  {!selected&&!(tab==="Account"&&settingsOpen)&&<BottomNav badges={{Account:game.missions.some(mission=>!mission.claimed&&mission.progress>=mission.target)}} active={tab} onChange={(nextTab)=>{if(nextTab==="Account"){openAccount("root");return;}setTab(nextTab);}}/>}
   {modal==="trade"&&selected&&<div className="fixed inset-0 z-50 overflow-y-auto bg-black" role="dialog" aria-modal="true" aria-label={`${tradeSide==="buy"?"Buy":"Sell"} ${selected.ticker}`}><TradeFlow
     key={selected.ticker+tradeSide}
     ticker={selected.ticker}
@@ -322,7 +344,6 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onExecuteTrade={({side,shares})=>commitStockTrade(selected,side,shares)}
     onQueueOrder={({side,shares,targetPrice})=>queueStockOrder(selected,side,shares,targetPrice)}
   /></div>}
-  {modal==="profile"&&<div className="modal-backdrop profile-backdrop"><section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title"><div className="profile-mark"><BrandMark/></div><p className="eyebrow">YOUR INVESTING JOURNEY</p><h2 id="profile-title">What should we call you?</h2><p className="game-muted">Set up your profile to personalise your STONKS dashboard.</p><label className="amount-label" htmlFor="profile-name">Your name</label><input id="profile-name" className="game-amount-input" autoComplete="given-name" value={profileInput} onChange={e=>setProfileInput(e.target.value)} placeholder="Enter your name" onKeyDown={e=>{if(e.key==="Enter")saveProfile();}}/><button className="review-button" onClick={saveProfile}>Continue <ArrowRight size={16}/></button></section></div>}
   {modal==="news"&&<div className="modal-backdrop" onClick={()=>setModal(null)}><section className="news-modal" role="dialog" aria-modal="true" aria-labelledby="news-title" onClick={e=>e.stopPropagation()}><div className="modal-head"><span className="news-kicker"><i/> MARKET UPDATE</span><button onClick={()=>setModal(null)} aria-label="Close news"><X size={20}/></button></div><div className="news-modal-source">{filteredNews[newsIndex%filteredNews.length]?.source??"Market simulator"} · {filteredNews[newsIndex%filteredNews.length]?.time??"Latest"}</div><h2 id="news-title">{filteredNews[newsIndex%filteredNews.length]?.title??"No market update selected"}</h2><p>{filteredNews[newsIndex%filteredNews.length]?.body??"Open the news feed to select a market update."}</p><div className="news-modal-ticker"><span>AFFECTED TICKER</span><b>{filteredNews[newsIndex%filteredNews.length]?.ticker??"—"}</b></div><button className="news-open-button" onClick={()=>{setModal(null);setTab("News");}}>Open news feed <ArrowRight size={16}/></button></section></div>}
   {toast&&<div className="toast" role="status">{toast}<button onClick={()=>setToast("")}><X size={14}/></button></div>}
  </main>;
