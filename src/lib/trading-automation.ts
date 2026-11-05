@@ -84,6 +84,36 @@ export function createMarketClock(day = 1, minute = MARKET_OPEN_MINUTE): MarketC
   };
 }
 
+export function isMarketOpen(state: GameState): boolean {
+  const minute = state.market.minute;
+  return minute >= MARKET_OPEN_MINUTE && minute < MARKET_OPEN_MINUTE + MARKET_SESSION_MINUTES;
+}
+
+export type EnqueueOrderInput = {
+  ticker: string;
+  action: "buy" | "sell";
+  shares: number;
+  targetPrice: number;
+};
+
+export function enqueueOrder(state: GameState, input: EnqueueOrderInput): GameState {
+  const ticker = input.ticker.trim().toUpperCase();
+  if (!ticker || !(input.shares > 0) || !(input.targetPrice > 0)) return state;
+
+  const order: QueuedOrder = {
+    id: `queued-${state.market.day}-${state.market.minute}-${state.queuedOrders.length}`,
+    ticker,
+    action: input.action,
+    shares: input.shares,
+    targetPrice: input.targetPrice,
+    createdAtDay: state.market.day,
+    createdAtMinute: state.market.minute,
+    status: "pending",
+  };
+
+  return { ...state, queuedOrders: [...state.queuedOrders, order] };
+}
+
 export function updateWatchlist(state: GameState, action: WatchlistAction): GameState {
   const ticker = action.ticker.trim().toUpperCase();
   if (!ticker) return state;

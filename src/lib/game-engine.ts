@@ -6,6 +6,7 @@ import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinute
 import { createScrutinyState, evaluateFinancialScrutiny, hireComplianceOfficer, resolveInvestigation, type ScrutinyState, type ScrutinySignals, type InvestigationAction } from "@/lib/compliance-engine";
 import { createLegacyState, completeRebirth, purchaseLegacyUpgrade, type LegacyState, type LegacyUpgrade, type RebirthSnapshot } from "@/lib/rebirth-engine";
 import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
+import { createMarketClock, hydrateTradingAutomation, type MarketClock, type QueuedOrder, type Sip } from "@/lib/trading-automation";
 
 export const MARKET_OPEN_MINUTE = 570;
 export const MARKET_SESSION_MINUTES = 390;
@@ -63,6 +64,9 @@ export type GameState = {
   lastActiveAt: number;
   scrutiny: ScrutinyState;
   legacy: LegacyState;
+  clock: MarketClock;
+  queuedOrders: QueuedOrder[];
+  sips: Sip[];
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -126,7 +130,7 @@ function hydrateLegacy(value:unknown):LegacyState {
 }
 
 export function createGameState(seed=731991): GameState {
-  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState()};
+  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState(),clock:createMarketClock(1,MARKET_OPEN_MINUTE),queuedOrders:[],sips:[]};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -166,6 +170,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.businesses=Array.isArray(source.businesses)?source.businesses:[];
   state.realEstate=Array.isArray(source.realEstate)?source.realEstate:[];
   state.lastActiveAt=number(source.lastActiveAt);
+  state.clock=createMarketClock(state.market.day,state.market.minute);
   return state;
 }
 
@@ -180,7 +185,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     const quantity=number(holding.quantity);
     if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
-  return {
+  const hydrated:GameState = {
     ...defaults,...source,version:4,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
@@ -198,6 +203,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay),
     scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy)
   };
+  return {...hydrated,...hydrateTradingAutomation(source,hydrated)};
 }
 
 export function restoreMarketSnapshot(state:GameState, stocks:Stock[]):Stock[] {

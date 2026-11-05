@@ -24,12 +24,12 @@ export type TradeFlowProps = {
     amount: number;
     shares: number;
     estimatedPrice: number;
-  }) => void;
+  }) => boolean | void;
   onQueueOrder: (input: {
     side: TradeSide;
     shares: number;
     targetPrice: number;
-  }) => void;
+  }) => boolean | void;
 };
 
 const formatAmount = (value: number, symbol = "$") =>
@@ -98,13 +98,14 @@ export default function TradeFlow({
     if (numericAmount <= 0 || estimatedShares <= 0) return;
 
     if (isMarketOpen) {
-      onExecuteTrade({
+      const accepted = onExecuteTrade({
         side: tradeSide,
         unit,
         amount: numericAmount,
         shares: estimatedShares,
         estimatedPrice: price,
       });
+      if (accepted === false) return;
       setConfirmation({
         title: "Order filled",
         shares: estimatedShares,
@@ -115,11 +116,12 @@ export default function TradeFlow({
       return;
     }
 
-    onQueueOrder({
+    const queued = onQueueOrder({
       side: tradeSide,
       shares: estimatedShares,
       targetPrice: price,
     });
+    if (queued === false) return;
     setConfirmation({
       title: "Order queued",
       shares: estimatedShares,
@@ -185,7 +187,10 @@ export default function TradeFlow({
           {[50, 100, 250, 500].map((value) => (
             <button
               key={value}
-              onClick={() => setUnit("Dollars") || setAmount(String(value))}
+              onClick={() => {
+                setUnit("Dollars");
+                setAmount(String(value));
+              }}
               className="rounded-full bg-[#1C1C1E] py-2 text-sm text-white [font-variant-numeric:tabular-nums]"
             >
               {currencySymbol}

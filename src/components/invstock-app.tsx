@@ -13,8 +13,8 @@ import { HomeDashboard } from "@/components/home/HomeDashboard";
 import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
-import { NumberPad } from "@/components/trade/NumberPad";
-import { SwipeToSubmit } from "@/components/trade/SwipeToSubmit";
+import TradeFlow from "@/components/trade/TradeFlow";
+import { enqueueOrder, isMarketOpen, processQueuedOrders, processSips, updateWatchlist } from "@/lib/trading-automation";
 import { createWorldNewsEvent, applyWorldNewsToMarket } from "@/lib/world-economy";
 import { formatMoney, formatCompactMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
 import { advanceCryptoMarket } from "@/lib/crypto";
@@ -133,11 +133,18 @@ export default function InvStockApp(){
       const worth=calculateNetWorth(nextGame,nextStocks);
       nextGame.dailyHistory=[...nextGame.dailyHistory.slice(-3649),{v:worth,t:previousDay+1}];
     }
+    const queued=processQueuedOrders(nextGame,nextStocks);
+    nextGame=queued.state;
+    if(queued.filled.length)setToast(`${queued.filled.length} queued order${queued.filled.length>1?"s":""} filled at market open`);
+    else if(queued.rejected.length)setToast(`${queued.rejected.length} queued order${queued.rejected.length>1?"s":""} could not be filled`);
     const worth=calculateNetWorth(nextGame,nextStocks);
     const last=nextGame.history.at(-1)?.t??0;
     nextGame.history=[...nextGame.history.slice(-1949),{v:worth,t:last+1}];
     nextGame.best=Math.max(nextGame.best,worth);
   }
+  const sipRun=processSips(nextGame,nextStocks);
+  nextGame=sipRun.state;
+  if(sipRun.paused.length)setToast(`${sipRun.paused[0].ticker} SIP paused: ${sipRun.paused[0].failureReason??"unable to execute"}`);
   if(!nextGame.eventsNextAt)nextGame.eventsNextAt=Date.now()+20000;
   if(Date.now()>=nextGame.eventsNextAt){
     const seed=nextGame.prngSeed;
@@ -175,14 +182,24 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const openStock=(stock:Stock)=>{setSelected(stock);setAmount("");};
  const closeDetail=()=>setSelected(null);
  const startTrade=(side:"buy"|"sell")=>{setTradeSide(side);setUnit("Dollars");setAmount("");setModal("trade");};
- const placeTrade=()=>{if(!selected)return;const numeric=Number(amount);const quantity=unit==="Dollars"?numeric/selected.price:numeric;const result=executeTrade(portfolio,selected,tradeSide,quantity);if(!result.ok){setToast(result.reason);return;}
-  const nextGame=structuredClone(gameRef.current);const previous=nextGame.holdings[selected.ticker];
+ const commitStockTrade=(stock:Stock,side:"buy"|"sell",quantity:number):boolean=>{
+  const result=executeTrade(portfolioFromGame(gameRef.current),stock,side,quantity);
+  if(!result.ok){setToast(result.reason);return false;}
+  const nextGame=structuredClone(gameRef.current);const previous=nextGame.holdings[stock.ticker];
   nextGame.cash=result.portfolio.cash;nextGame.holdings=Object.fromEntries(Object.entries(result.portfolio.holdings));nextGame.realizedPnl=result.portfolio.realizedPnl;nextGame.trades=result.portfolio.trades;
-  if(tradeSide==="buy"&&!previous)nextGame.holdSince[selected.ticker]=nextGame.market.day;
-  if(tradeSide==="sell"&&!result.portfolio.holdings[selected.ticker])delete nextGame.holdSince[selected.ticker];
-  nextGame.activity=[{type:tradeSide,ticker:selected.ticker,qty:result.quantity,price:result.executionPrice,fee:result.fee,day:nextGame.market.day},...nextGame.activity].slice(0,100);
+  if(side==="buy"&&!previous)nextGame.holdSince[stock.ticker]=nextGame.market.day;
+  if(side==="sell"&&!result.portfolio.holdings[stock.ticker])delete nextGame.holdSince[stock.ticker];
+  nextGame.activity=[{type:side,ticker:stock.ticker,qty:result.quantity,price:result.executionPrice,fee:result.fee,day:nextGame.market.day},...nextGame.activity].slice(0,100);
   evaluateAchievements(nextGame,stocksRef.current);updateProgression(nextGame,stocksRef.current,nextGame.prngSeed);gameRef.current=nextGame;setGame(nextGame);
-  playUiFeedback(nextGame,tradeSide==="buy"?760:390);setPortfolio(result.portfolio);setModal(null);setToast(`${tradeSide==="buy"?"Bought":"Sold"} ${result.quantity.toFixed(4)} shares of ${selected.ticker}`);};
+  playUiFeedback(nextGame,side==="buy"?760:390);setPortfolio(result.portfolio);setToast(`${side==="buy"?"Bought":"Sold"} ${result.quantity.toFixed(4)} shares of ${stock.ticker}`);
+  return true;
+ };
+ const queueStockOrder=(stock:Stock,side:"buy"|"sell",shares:number,targetPrice:number):boolean=>{
+  const next=enqueueOrder(gameRef.current,{ticker:stock.ticker,action:side,shares,targetPrice});
+  if(next===gameRef.current){setToast("Enter a valid order to queue.");return false;}
+  gameRef.current=next;setGame(next);setToast(`${side==="buy"?"Buy":"Sell"} order for ${stock.ticker} queued for market open`);
+  return true;
+ };
  const joinChallenge=()=>{const next=structuredClone(gameRef.current);const result=joinWeeklyChallenge(next,stocksRef.current);if(!result.ok){setToast(result.reason??"Unable to join challenge.");return;}gameRef.current=next;setGame(next);setToast("You joined this week's trading challenge.");};
  const claimMissionReward=(id:string)=>{const next=structuredClone(gameRef.current);updateProgression(next,stocksRef.current,next.prngSeed);const result=claimMission(next,id);if(!result.ok){setToast(result.reason??"Mission not ready.");return;}gameRef.current=next;setGame(next);setPortfolio(portfolioFromGame(next));playUiFeedback(next,980);setToast("Mission reward added to your cash balance.");};
  const claimChallengeReward=()=>{const next=structuredClone(gameRef.current);const result=claimWeeklyChallenge(next,stocksRef.current);if(!result.ok){setToast(result.reason??"Challenge reward unavailable.");return;}gameRef.current=next;setGame(next);setPortfolio(portfolioFromGame(next));playUiFeedback(next,1040);setToast(`Weekly challenge reward: ${money(result.reward??0)}`);};
@@ -214,7 +231,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const exportSave=()=>{const payload=JSON.stringify({...gameRef.current,market:{...gameRef.current.market,stocks:Object.fromEntries(stocksRef.current.map(stock=>[stock.ticker,stock]))}},null,2);const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));const anchor=document.createElement("a");anchor.href=url;anchor.download="invstock-save.json";anchor.click();URL.revokeObjectURL(url);};
  const importSave=(json:string)=>{try{const parsed=JSON.parse(json);const imported=hydrateGameState(parsed,stocksRef.current);const restoredStocks=restoreMarketSnapshot(imported,stocksRef.current);stocksRef.current=restoredStocks;setStocks(restoredStocks);imported.market.stocks=Object.fromEntries(restoredStocks.map(stock=>[stock.ticker,stock]));localStorage.setItem("invstock-legacy-migrated","true");gameRef.current=imported;setGame(imported);setPortfolio(portfolioFromGame(imported));setProfileInput(imported.profileName);setToast("Save imported successfully.");}catch{setToast("Could not import this save. Check the JSON and try again.");}};
  const resetGame=()=>{const next=gameFromPortfolio(initialPortfolio,stocksRef.current);next.profileName=gameRef.current.profileName;gameRef.current=next;setGame(next);setPortfolio(initialPortfolio);try{localStorage.removeItem("ticker_game_v1");localStorage.removeItem("invstock-game-v2");localStorage.removeItem("invstock-v2");localStorage.removeItem("invstock-legacy-migrated");}catch{}setToast("Simulator progress reset.");};
- const toggleSaved=(ticker:string)=>{const currentWatchlist=gameRef.current.watchlist;const nextWatchlist=currentWatchlist.includes(ticker)?currentWatchlist.filter(item=>item!==ticker):[...currentWatchlist,ticker];const nextGame={...gameRef.current,watchlist:nextWatchlist};gameRef.current=nextGame;setGame(nextGame);};
+ const toggleSaved=(ticker:string)=>{const nextGame=updateWatchlist(gameRef.current,{type:"toggle",ticker});gameRef.current=nextGame;setGame(nextGame);};
  const gotoStock=(ticker:string)=>{const stock=stockByTicker(ticker);if(stock)openStock(stock);};
  const pageTitle=selected?selected.ticker:tab;
 
@@ -265,7 +282,20 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
   {tab==="Account"&&<section className="account-view"><div className="rank-card"><div className="rank-icon"><Crown size={25}/></div><div className="rank-info"><small>YOUR RANK</small><b>{game.rank}</b><span className="profile-name-label">{game.profileName}</span><div className="xp-track"><i style={{width:Math.min(100,game.xp/2000*100)+"%"}}/></div><span>{game.xp} XP · {Math.max(0,450-game.xp)} XP to Analyst</span><button className="edit-profile" onClick={()=>{setProfileInput(game.profileName);setModal("profile");}}>Edit profile</button></div><ChevronRight size={18}/></div><SectionTitle title="Portfolio"/><div className="surface account-stats">{[["Total value",money(totalValue)],["Cash",money(portfolio.cash)],["Savings",money(game.savings)],["Outstanding loan",money(game.loan)],["Property value",money(game.buildings.reduce((sum,item)=>sum+item.value,0))],["Stocks",money(stockValue)],["Options","$0.00"],["Unrealized P/L",money(unrealizedPnl)],["Realized P/L",money(portfolio.realizedPnl)],["Dividends",money(dividendTotal)],["Starting capital",money(game.start)],["All-time return",`${money(totalValue-game.start)} (${((totalValue/game.start-1)*100).toFixed(2)}%)`]].map(([label,value],i)=><div className="account-stat" key={label}><span>{label}</span><b className={i===5||i===6||i===9?"gain":""}>{value}</b></div>)}</div><SectionTitle title="Performance"/><div className="surface performance-card"><div className="performance-chart"><Chart data={chartData} currency={game.settings.currency}/></div><div className="timeframes">{["1M","3M","1Y","ALL"].map(t=><button key={t} className={timeframe===t?"selected":""} onClick={()=>setTimeframe(t)}>{t}</button>)}</div></div><AccountGamePanels initialPanel={accountInitialPanel} state={game} stocks={stocks} onBank={performBankAction} onBuilding={performBuildingAction} onCryptoTrade={performCryptoTrade} onBusinessBuy={performBusinessBuy} onBusinessHire={performBusinessHire} onBusinessFire={performBusinessFire} onBusinessPromote={performBusinessPromote} onBusinessUpgrade={performBusinessUpgrade} onBusinessStrategy={performBusinessStrategy} onBusinessRelocate={performBusinessRelocate} onBusinessSell={performBusinessSell} onPropertyBuy={performPropertyBuy} onPropertyUpgrade={performPropertyUpgrade} onPropertySell={performPropertySell} onComplianceReview={performComplianceReview} onComplianceHire={performComplianceHire} onInvestigationResolve={performInvestigationResolve} onLegacyUpgrade={performLegacyUpgrade} onRebirth={performRebirth} onSpeed={changeSpeed} onSetting={changeSetting} onImport={importSave} onExport={exportSave} onReset={resetGame}/></section>}
   </>}
   {!selected&&<BottomNav active={tab} onChange={(nextTab)=>{if(nextTab==="Account")setAccountInitialPanel("Bank");setTab(nextTab);}}/>}
-  {modal==="trade"&&selected&&<div className="modal-backdrop" onClick={()=>setModal(null)}><section className="trade-modal" onClick={e=>e.stopPropagation()}><div className="modal-head"><button onClick={()=>setModal(null)} aria-label="Close"><X size={19}/></button><b>{tradeSide==="buy"?"Buy":"Sell"} {selected.ticker}</b><span/></div><div className="order-type"><span>Order type</span><button onClick={()=>setToast("Market orders execute at the simulated market price.")}>Market <ChevronDown size={15}/></button></div><div className="segmented amount-toggle">{(["Shares","Dollars"] as const).map(v=><button key={v} className={unit===v?"selected":""} onClick={()=>{setUnit(v);setAmount("");}}>{v}</button>)}</div><label className="amount-label">Amount</label><div className="amount-display">{unit==="Dollars"?"$":""}{amount||"0"}{unit==="Shares"&&<small> shares</small>}</div><div className="quick-amounts">{(unit==="Dollars"?["50","100","250","500"]:["1","2","5","10"]).map(v=><button key={v} onClick={()=>setAmount(v)}>{unit==="Dollars"?"$":""}{v}</button>)}</div><div className="market-info"><div><span>Market price</span><b>{money(selected.price)} · Bid {money(selected.price*.9997)} · Ask {money(selected.price*1.0003)}</b></div><div><span>Est. shares</span><b>{unit==="Dollars"?(Number(amount||0)/selected.price).toFixed(4):Number(amount||0).toFixed(4)}</b></div><small>{money(portfolio.cash)} buying power available</small></div><NumberPad value={amount} onChange={setAmount} maxDecimals={unit==="Dollars"?2:4}/><SwipeToSubmit onConfirm={placeTrade} text="Swipe up to place simulated trade" disabled={!amount||Number(amount)<=0||(tradeSide==="buy"&&(unit==="Dollars"?Number(amount)>portfolio.cash:Number(amount)*selected.price>portfolio.cash))||(tradeSide==="sell"&&(unit==="Dollars"?Number(amount)/selected.price:Number(amount))>(portfolio.holdings[selected.ticker]?.quantity??0))}/></section></div>}
+  {modal==="trade"&&selected&&<div className="fixed inset-0 z-50 overflow-y-auto bg-black" role="dialog" aria-modal="true" aria-label={`${tradeSide==="buy"?"Buy":"Sell"} ${selected.ticker}`}><TradeFlow
+    key={selected.ticker+tradeSide}
+    ticker={selected.ticker}
+    price={selected.price}
+    bid={selected.price*.9997}
+    ask={selected.price*1.0003}
+    buyingPower={game.cash}
+    isMarketOpen={isMarketOpen(game)}
+    chartHistory={selected.history.slice(-78)}
+    tradeSide={tradeSide}
+    onBack={()=>setModal(null)}
+    onExecuteTrade={({side,shares})=>commitStockTrade(selected,side,shares)}
+    onQueueOrder={({side,shares,targetPrice})=>queueStockOrder(selected,side,shares,targetPrice)}
+  /></div>}
   {modal==="profile"&&<div className="modal-backdrop profile-backdrop"><section className="profile-modal" role="dialog" aria-modal="true" aria-labelledby="profile-title"><div className="profile-mark"><BrandMark/></div><p className="eyebrow">YOUR INVESTING JOURNEY</p><h2 id="profile-title">What should we call you?</h2><p className="game-muted">Set up your profile to personalise your STONKS dashboard.</p><label className="amount-label" htmlFor="profile-name">Your name</label><input id="profile-name" className="game-amount-input" autoComplete="given-name" value={profileInput} onChange={e=>setProfileInput(e.target.value)} placeholder="Enter your name" onKeyDown={e=>{if(e.key==="Enter")saveProfile();}}/><button className="review-button" onClick={saveProfile}>Continue <ArrowRight size={16}/></button></section></div>}
   {modal==="news"&&<div className="modal-backdrop" onClick={()=>setModal(null)}><section className="news-modal" role="dialog" aria-modal="true" aria-labelledby="news-title" onClick={e=>e.stopPropagation()}><div className="modal-head"><span className="news-kicker"><i/> MARKET UPDATE</span><button onClick={()=>setModal(null)} aria-label="Close news"><X size={20}/></button></div><div className="news-modal-source">{filteredNews[newsIndex%filteredNews.length]?.source??"Market simulator"} · {filteredNews[newsIndex%filteredNews.length]?.time??"Latest"}</div><h2 id="news-title">{filteredNews[newsIndex%filteredNews.length]?.title??"No market update selected"}</h2><p>{filteredNews[newsIndex%filteredNews.length]?.body??"Open the news feed to select a market update."}</p><div className="news-modal-ticker"><span>AFFECTED TICKER</span><b>{filteredNews[newsIndex%filteredNews.length]?.ticker??"—"}</b></div><button className="news-open-button" onClick={()=>{setModal(null);setTab("News");}}>Open news feed <ArrowRight size={16}/></button></section></div>}
   {toast&&<div className="toast" role="status">{toast}<button onClick={()=>setToast("")}><X size={14}/></button></div>}
