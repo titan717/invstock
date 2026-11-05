@@ -1,19 +1,28 @@
 import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
+import { optionValue } from "@/lib/options-engine";
 import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
 import { createScrutinyState, evaluateFinancialScrutiny, hireComplianceOfficer, resolveInvestigation, type ScrutinyState, type ScrutinySignals, type InvestigationAction } from "@/lib/compliance-engine";
 import { createLegacyState, completeRebirth, purchaseLegacyUpgrade, type LegacyState, type LegacyUpgrade, type RebirthSnapshot } from "@/lib/rebirth-engine";
 import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
+import { createMarketClock, hydrateTradingAutomation, type MarketClock, type QueuedOrder, type Sip } from "@/lib/trading-automation";
 
-export const MARKET_OPEN_MINUTE = 570;
-export const MARKET_SESSION_MINUTES = 390;
+import { MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES } from "@/lib/market-hours";
+export { MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES };
+/** Session-minute counter used for rumour timing. Frozen overnight so it never runs backwards across midnight. */
+export function sessionTick(day:number,minute:number):number {
+  return day*MARKET_SESSION_MINUTES+Math.min(MARKET_SESSION_MINUTES,Math.max(0,minute-MARKET_OPEN_MINUTE));
+}
 
 export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };
 export type GameActivity = { type: string; ticker?: string; qty?: number; price?: number; fee?: number; amount?: number; day: number };
-export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty };
+/** A long, paper-traded options contract. One contract covers 100 shares; expiryDay is the game day it settles. */
+export type OptionPosition = { id: string; ticker: string; type: "call" | "put"; strike: number; expiryDay: number; contracts: number; premium: number; iv: number; openedDay: number };
+export type PriceAlert = { id: string; ticker: string; target: number; direction: "above" | "below"; createdDay: number };
+export type GameSettings = { speed: number; sound: boolean; haptics: boolean; theme: "dark"; currency: CurrencyCode; difficulty: Difficulty; notifications: boolean; music: boolean; /** Use real-time exchange quotes for listed tickers. */ liveData: boolean };
 export type GameNews = { id: number; headline: string; body: string; tickers: string[]; sentiment: number; magnitude?: number; type: string; day: number; minute?: number; after?: number | null; truth?: boolean; source?: string; category?: string; affectedIndustries?: string[]; affectedSectors?: string[]; reliability?: number; status?: "developing"|"confirmed"|"unverified"; severity?: "low"|"moderate"|"high"|"critical"; expiresDay?: number; demandImpact?: number; costImpact?: number };
 export type GameMission={id:string;title:string;description:string;metric:"trades"|"properties"|"growth";target:number;progress:number;reward:number;xpReward:number;claimed:boolean};
 export type ChallengeBot={name:string;returnPct:number;risk:number};
@@ -44,6 +53,11 @@ export type GameState = {
   settings: GameSettings;
   history: {v:number;t:number}[];
   dailyHistory: {v:number;t:number}[];
+  /** Daily closes of the benchmark ETF (SPY), keyed by the same `t` (day) as dailyHistory. */
+  benchmarkHistory: {v:number;t:number}[];
+  priceAlerts: PriceAlert[];
+  recentlyViewed: string[];
+  optionPositions: OptionPosition[];
   holdSince: Record<string, number>;
   best: number;
   start: number;
@@ -63,6 +77,9 @@ export type GameState = {
   lastActiveAt: number;
   scrutiny: ScrutinyState;
   legacy: LegacyState;
+  clock: MarketClock;
+  queuedOrders: QueuedOrder[];
+  sips: Sip[];
 };
 export type GameActionResult = {ok:true; state:GameState; message?:string} | {ok:false; state:GameState; reason:string};
 type BuildingDefinition = {name:string;icon:string;cost:number;income:number};
@@ -80,7 +97,7 @@ export const ACHIEVEMENTS = [
   {id:"Landlord",description:"Buy your first property."},
   {id:"Millionaire",description:"Reach one million dollars in net worth."}
 ] as const;
-const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal"};
+const defaultSettings: GameSettings = {speed:1,sound:true,haptics:true,theme:"dark",currency:"USD",difficulty:"normal",notifications:true,music:false,liveData:true};
 export const DIFFICULTY_RULES: Record<Difficulty,{marketVolatility:number;businessIncome:number;buildingCost:number;savingsApy:number;loanApr:number;creditLimit:number;missedPaymentPenalty:number}> = {
   easy:{marketVolatility:.75,businessIncome:1.2,buildingCost:.85,savingsApy:.04,loanApr:.08,creditLimit:.45,missedPaymentPenalty:.005},
   normal:{marketVolatility:1,businessIncome:1,buildingCost:1,savingsApy:.035,loanApr:.12,creditLimit:.35,missedPaymentPenalty:.01},
@@ -125,8 +142,18 @@ function hydrateLegacy(value:unknown):LegacyState {
   };
 }
 
+function hydrateOptionPositions(value: unknown): OptionPosition[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is OptionPosition => !!item && typeof item === "object" && typeof (item as OptionPosition).ticker === "string" && ((item as OptionPosition).type === "call" || (item as OptionPosition).type === "put") && [(item as OptionPosition).strike, (item as OptionPosition).expiryDay, (item as OptionPosition).contracts, (item as OptionPosition).premium].every(Number.isFinite) && (item as OptionPosition).contracts > 0);
+}
+
+function hydratePriceAlerts(value: unknown): PriceAlert[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is PriceAlert => !!item && typeof item === "object" && typeof (item as PriceAlert).ticker === "string" && Number.isFinite((item as PriceAlert).target) && ((item as PriceAlert).direction === "above" || (item as PriceAlert).direction === "below")).map(item => ({ id: String(item.id ?? `${item.ticker}-${item.target}`), ticker: item.ticker, target: item.target, direction: item.direction, createdDay: Number.isFinite(item.createdDay) ? item.createdDay : 1 })).slice(0, 50);
+}
+
 export function createGameState(seed=731991): GameState {
-  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState()};
+  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],benchmarkHistory:[],priceAlerts:[],recentlyViewed:[],optionPositions:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState(),clock:createMarketClock(1,MARKET_OPEN_MINUTE),queuedOrders:[],sips:[]};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -149,6 +176,10 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.settings={...defaultSettings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)};
   state.history=Array.isArray(source.history)?source.history.slice(-1950):[];
   state.dailyHistory=Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[];
+  state.benchmarkHistory=Array.isArray(source.benchmarkHistory)?source.benchmarkHistory.slice(-3650):[];
+  state.priceAlerts=hydratePriceAlerts(source.priceAlerts);
+  state.optionPositions=hydrateOptionPositions(source.optionPositions);
+  state.recentlyViewed=Array.isArray(source.recentlyViewed)?source.recentlyViewed.filter((item:unknown):item is string=>typeof item==="string").slice(0,12):[];
   state.holdSince=object(source.holdSince) as Record<string,number>;
   state.best=number(source.best,state.best);state.start=number(source.start,state.start);
   state.lastDay=number(source.lastDay,1);state.lastBankDay=number(source.lastBankDay,1);
@@ -166,6 +197,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.businesses=Array.isArray(source.businesses)?source.businesses:[];
   state.realEstate=Array.isArray(source.realEstate)?source.realEstate:[];
   state.lastActiveAt=number(source.lastActiveAt);
+  state.clock=createMarketClock(state.market.day,state.market.minute);
   return state;
 }
 
@@ -180,7 +212,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     const quantity=number(holding.quantity);
     if(quantity>0){const savedCost=number(holding.averageCost);const marketPrice=stocks.find(stock=>stock.ticker===ticker)?.price??0;holdings[ticker]={quantity,averageCost:savedCost>0?savedCost:marketPrice};}
   }
-  return {
+  const hydrated:GameState = {
     ...defaults,...source,version:4,profileName:String(source.profileName??defaults.profileName),
     xp:number(source.xp),rank:String(source.rank??defaults.rank),
     missions:Array.isArray(source.missions)?source.missions:defaults.missions,
@@ -188,16 +220,21 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
     holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,businesses:Array.isArray(source.businesses)?source.businesses:[],realEstate:Array.isArray(source.realEstate)?source.realEstate:[],lastActiveAt:number(source.lastActiveAt),buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
-    achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
+    achievements:strings(source.achievements),watchlist:Array.isArray(source.watchlist)?strings(source.watchlist):defaults.watchlist,
     settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
     history:Array.isArray(source.history)?source.history.slice(-1950):[],
     dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
+    benchmarkHistory:Array.isArray(source.benchmarkHistory)?source.benchmarkHistory.slice(-3650):[],
+    priceAlerts:hydratePriceAlerts(source.priceAlerts),
+    optionPositions:hydrateOptionPositions(source.optionPositions),
+    recentlyViewed:Array.isArray(source.recentlyViewed)?source.recentlyViewed.filter((item:unknown):item is string=>typeof item==="string").slice(0,12):[],
     holdSince:object(source.holdSince) as Record<string,number>,
     market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
     news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
     prngSeed:number(source.prngSeed,731991)>>>0,eventsNextAt:number(source.eventsNextAt),lastDividendDay:number(source.lastDividendDay),
     scrutiny:hydrateScrutiny(source.scrutiny,defaults.scrutiny),legacy:hydrateLegacy(source.legacy)
   };
+  return {...hydrated,...hydrateTradingAutomation(source,hydrated)};
 }
 
 export function restoreMarketSnapshot(state:GameState, stocks:Stock[]):Stock[] {
@@ -223,7 +260,8 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
   const cryptoValue=Object.entries(state.cryptoHoldings).reduce((sum,[symbol,h])=>sum+(state.cryptoMarket.find(asset=>asset.symbol===symbol)?.price??0)*h.quantity,0);
   const businessValue=state.businesses.reduce((sum,business)=>sum+business.value,0);
   const realEstateValue=state.realEstate.reduce((sum,property)=>sum+property.value,0);
-  return state.cash+state.savings+positions+cryptoValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
+  const optionsValue=(state.optionPositions??[]).reduce((sum,position)=>{const spot=prices.get(position.ticker);return sum+(spot===undefined?0:optionValue(spot,position.strike,Math.max(0,position.expiryDay-state.market.day),position.iv,position.type)*100*position.contracts);},0);
+  return state.cash+state.savings+positions+optionsValue+cryptoValue+businessValue+realEstateValue+state.buildings.reduce((sum,b)=>sum+b.value,0)-state.loan;
 }
 
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {

@@ -93,6 +93,11 @@ describe("full simulator game engine", () => {
     expect(state.holdings.MSFT.averageCost).toBe(market.find(stock => stock.ticker === "MSFT")!.price);
   });
 
+  it("preserves an intentionally empty watchlist when hydrating a saved game", () => {
+    const state = hydrateGameState({ version: 4, watchlist: [] }, market);
+    expect(state.watchlist).toEqual([]);
+  });
+
   it("repairs missing cost basis when hydrating a version-two save", () => {
     const state = hydrateGameState({ version: 2, holdings: { MSFT: { quantity: 2 } } }, market);
     expect(state.holdings.MSFT.averageCost).toBe(market.find(stock => stock.ticker === "MSFT")!.price);

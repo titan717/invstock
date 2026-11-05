@@ -11,20 +11,25 @@ type Props = {
   currency?: CurrencyCode;
   onClick: () => void;
   mode?: "price" | "volume";
+  quantity?: number;
+  value?: number;
+  changePercent?: number;
 };
 
 const signedChange = (value: number) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
 
-export function StockListRow({ stock, currency = "USD", onClick, mode = "price" }: Props) {
+export function StockListRow({ stock, currency = "USD", onClick, mode = "price", quantity, value, changePercent }: Props) {
   const history = stock.history.map((value, index) => ({ index, value }));
-  const positive = stock.change >= 0;
+  const displayedChange = changePercent ?? stock.change;
+  const positive = displayedChange >= 0;
+  const accessibleQuantity = quantity === undefined ? "" : `, ${quantity.toFixed(3)} shares`;
 
   return (
     <button
       type="button"
       className="stock-list-row"
       data-stock-ticker={stock.ticker}
-      aria-label={`${stock.ticker}, ${stock.name}, ${formatMoney(stock.price, currency)}, ${signedChange(stock.change)}`}
+      aria-label={`${stock.ticker}, ${stock.name}${accessibleQuantity}, ${formatMoney(value ?? stock.price, currency)}, ${signedChange(displayedChange)}`}
       onClick={onClick}
     >
       <span className="stock-row-identity">
@@ -32,6 +37,7 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price" 
         <span className="stock-row-meta">
           <b>{stock.ticker}</b>
           <small>{stock.name}</small>
+          {quantity !== undefined && <small className="stock-row-quantity tabular-nums">{quantity.toFixed(3)} shares</small>}
         </span>
       </span>
       <span className={`stock-row-sparkline ${positive ? "positive" : "negative"}`} aria-hidden="true">
@@ -48,9 +54,9 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price" 
           </LineChart>
         </ResponsiveContainer>
       </span>
-      <span className="stock-row-quote">
-        <b>{mode === "volume" ? `Vol ${(stock.volume / 1e6).toFixed(1)}M` : formatMoney(stock.price, currency)}</b>
-        <small className={`stock-change-pill ${positive ? "positive" : "negative"}`}>{signedChange(stock.change)}</small>
+      <span className="stock-row-quote tabular-nums">
+        <b>{mode === "volume" ? `Vol ${(stock.volume / 1e6).toFixed(1)}M` : formatMoney(value ?? stock.price, currency)}</b>
+        <small className={`stock-change-pill ${positive ? "positive" : "negative"}`}>{signedChange(displayedChange)}</small>
       </span>
     </button>
   );
