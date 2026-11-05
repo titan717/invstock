@@ -37,7 +37,7 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price",
         <span className="stock-row-meta">
           <b>{stock.ticker}</b>
           <small>{stock.name}</small>
-          {quantity !== undefined && <small className="stock-row-quantity">{quantity.toFixed(3)} shares</small>}
+          {quantity !== undefined && <small className="stock-row-quantity tabular-nums">{quantity.toFixed(3)} shares</small>}
         </span>
       </span>
       <span className={`stock-row-sparkline ${positive ? "positive" : "negative"}`} aria-hidden="true">
@@ -54,7 +54,7 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price",
           </LineChart>
         </ResponsiveContainer>
       </span>
-      <span className="stock-row-quote">
+      <span className="stock-row-quote tabular-nums">
         <b>{mode === "volume" ? `Vol ${(stock.volume / 1e6).toFixed(1)}M` : formatMoney(value ?? stock.price, currency)}</b>
         <small className={`stock-change-pill ${positive ? "positive" : "negative"}`}>{signedChange(displayedChange)}</small>
       </span>
