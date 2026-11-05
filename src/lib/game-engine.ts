@@ -49,6 +49,8 @@ export type GameState = {
   settings: GameSettings;
   history: {v:number;t:number}[];
   dailyHistory: {v:number;t:number}[];
+  /** Daily closes of the benchmark ETF (SPY), keyed by the same `t` (day) as dailyHistory. */
+  benchmarkHistory: {v:number;t:number}[];
   holdSince: Record<string, number>;
   best: number;
   start: number;
@@ -134,7 +136,7 @@ function hydrateLegacy(value:unknown):LegacyState {
 }
 
 export function createGameState(seed=731991): GameState {
-  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState(),clock:createMarketClock(1,MARKET_OPEN_MINUTE),queuedOrders:[],sips:[]};
+  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],benchmarkHistory:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState(),clock:createMarketClock(1,MARKET_OPEN_MINUTE),queuedOrders:[],sips:[]};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -157,6 +159,7 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.settings={...defaultSettings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1)};
   state.history=Array.isArray(source.history)?source.history.slice(-1950):[];
   state.dailyHistory=Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[];
+  state.benchmarkHistory=Array.isArray(source.benchmarkHistory)?source.benchmarkHistory.slice(-3650):[];
   state.holdSince=object(source.holdSince) as Record<string,number>;
   state.best=number(source.best,state.best);state.start=number(source.start,state.start);
   state.lastDay=number(source.lastDay,1);state.lastBankDay=number(source.lastBankDay,1);
@@ -201,6 +204,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
     history:Array.isArray(source.history)?source.history.slice(-1950):[],
     dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
+    benchmarkHistory:Array.isArray(source.benchmarkHistory)?source.benchmarkHistory.slice(-3650):[],
     holdSince:object(source.holdSince) as Record<string,number>,
     market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
     news:Array.isArray(source.news)?source.news:[],pendingNews:Array.isArray(source.pendingNews)?source.pendingNews:[],
