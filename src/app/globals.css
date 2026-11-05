@@ -681,3 +681,134 @@ select:focus-visible {
 
 .home-portfolio-chart.is-positive .recharts-reference-dot circle { filter: drop-shadow(0 0 5px #00D09C); }
 .home-portfolio-chart.is-negative .recharts-reference-dot circle { filter: drop-shadow(0 0 5px #FF5722); }
+
+/* Discover screen */
+.discovery-view {
+  padding-bottom: 18px;
+}
+.discovery-search {
+  display: flex;
+  height: 48px;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 14px;
+  border: 1px solid #303036;
+  border-radius: var(--radius-pill);
+  padding: 0 15px;
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+.discovery-search:focus-within {
+  border-color: rgba(0, 208, 156, .65);
+  box-shadow: 0 0 0 3px rgba(0, 208, 156, .08);
+}
+.discovery-search input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+.discovery-search input::placeholder { color: #77777F; }
+.discovery-search button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #333339;
+  color: #D4D4D8;
+}
+.discovery-market-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 17px;
+}
+.discovery-market-tabs button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #303036;
+  border-radius: var(--radius-pill);
+  padding: 0 15px;
+  background: #111113;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+}
+.discovery-market-tabs button.selected {
+  border-color: rgba(0, 208, 156, .32);
+  background: rgba(0, 208, 156, .12);
+  color: var(--primary);
+}
+.discovery-view .sector-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -16px 21px;
+  padding: 0 16px 5px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.discovery-view .sector-strip::-webkit-scrollbar { display: none; }
+.discovery-view .sector-strip button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid #303036;
+  border-radius: var(--radius-pill);
+  padding: 0 13px;
+  background: #111113;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 650;
+}
+.discovery-view .sector-strip button.selected {
+  border-color: rgba(0, 208, 156, .35);
+  background: rgba(0, 208, 156, .13);
+  color: var(--primary);
+}
+.discovery-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 19px 0 9px;
+}
+.discovery-section-heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -.25px;
+}
+.discovery-section-heading button {
+  flex: none;
+  border: 0;
+  padding: 5px 0 5px 8px;
+  background: transparent;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 750;
+}
+.discovery-stock-list {
+  overflow: hidden;
+  border: 1px solid rgba(142, 142, 147, .12);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+.discovery-stock-list .stock-list-row { min-height: 68px; }
+.discovery-search-results { margin-top: 5px; }
+.discovery-empty-state {
+  margin: 0;
+  padding: 26px 14px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
