@@ -89,3 +89,4 @@ describe("InvStock save restoration", () => {
     const watchlistRows = Array.from(container.querySelectorAll(".watchlist-item")).map(row => row.querySelector("[data-stock-ticker]")?.getAttribute("data-stock-ticker"));
     expect(watchlistRows).toEqual(["MSFT", "META", "GOOGL", "COIN", "SHOP"]);
   });
+});
