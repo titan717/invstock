@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Bookmark, BriefcaseBusiness, Check, ChevronDown, Coins, ChevronRight, CircleHelp, Clock3, Compass, Crown, Flame, Home, Landmark, Layers, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingDown, TrendingUp, Trophy, User, Wallet, X, Zap } from "lucide-react";
+import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, Check, ChevronDown, Coins, ChevronRight, CircleHelp, Clock3, Compass, Crown, Flame, Home, Landmark, Layers, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Star, Target, TrendingDown, TrendingUp, Trophy, User, Wallet, X, Zap } from "lucide-react";
 import { advanceMarket, createMarket, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, initialPortfolio, type Portfolio } from "@/lib/simulator";
