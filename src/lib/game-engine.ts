@@ -8,8 +8,12 @@ import { createLegacyState, completeRebirth, purchaseLegacyUpgrade, type LegacyS
 import { getWorldIndustryModifiers, pruneExpiredWorldNews } from "@/lib/world-economy";
 import { createMarketClock, hydrateTradingAutomation, type MarketClock, type QueuedOrder, type Sip } from "@/lib/trading-automation";
 
-export const MARKET_OPEN_MINUTE = 570;
-export const MARKET_SESSION_MINUTES = 390;
+import { MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES } from "@/lib/market-hours";
+export { MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES };
+/** Session-minute counter used for rumour timing. Frozen overnight so it never runs backwards across midnight. */
+export function sessionTick(day:number,minute:number):number {
+  return day*MARKET_SESSION_MINUTES+Math.min(MARKET_SESSION_MINUTES,Math.max(0,minute-MARKET_OPEN_MINUTE));
+}
 
 export type GameHolding = { quantity: number; averageCost: number };
 export type GameBuilding = { id: string; name: string; icon: string; cost: number; value: number; income: number; level: number };

@@ -5,16 +5,16 @@ import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, T
 import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, BriefcaseBusiness, Check, ChevronDown, Coins, ChevronRight, CircleHelp, Clock3, Compass, Crown, Flame, Home, Landmark, Layers, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Star, Target, TrendingDown, TrendingUp, Trophy, User, Wallet, X, Zap } from "lucide-react";
 import { advanceMarket, createMarket, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
-import { executeTrade, initialPortfolio, type Portfolio } from "@/lib/simulator";
+import { initialPortfolio, type Portfolio } from "@/lib/simulator";
 import { AccountGamePanels } from "@/components/account/AccountGamePanels";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { HomeDashboard } from "@/components/home/HomeDashboard";
-import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, sessionTick, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import { generateOptionChain } from "@/lib/options-engine";
 import TradeFlow from "@/components/trade/TradeFlow";
-import { enqueueOrder, isMarketOpen, processQueuedOrders, processSips, updateWatchlist } from "@/lib/trading-automation";
+import { applyStockTrade, clockStepMinutes, enqueueOrder, isMarketOpen, MINUTES_PER_DAY, processQueuedOrders, processSips, updateWatchlist } from "@/lib/trading-automation";
 import { createWorldNewsEvent, applyWorldNewsToMarket } from "@/lib/world-economy";
 import { formatMoney, formatCompactMoney, type CurrencyCode, type Difficulty } from "@/lib/currency";
 import { advanceCryptoMarket } from "@/lib/crypto";
@@ -117,43 +117,51 @@ export default function InvStockApp(){
   let nextStocks=stocksRef.current;
   for(let step=0;step<speed;step++){
     const marketSeed=nextGame.prngSeed>>>0;
-    nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic",DIFFICULTY_RULES[nextGame.settings.difficulty].marketVolatility);
+    const sessionOpen=isMarketOpen(nextGame);
+    // Stock prices, business income and portfolio history only move during the trading session.
+    if(sessionOpen)nextStocks=advanceMarket(nextStocks,marketSeed,nextGame.market.regime as "Bull"|"Bear"|"Sideways"|"Panic",DIFFICULTY_RULES[nextGame.settings.difficulty].marketVolatility);
+    // Crypto trades 24/7.
     nextGame.cryptoMarket=advanceCryptoMarket(nextGame.cryptoMarket,(marketSeed^0x9e3779b9)>>>0,DIFFICULTY_RULES[nextGame.settings.difficulty].marketVolatility);
     nextGame.prngSeed=(marketSeed*1664525+1013904223)>>>0;
     if(nextGame.prngSeed%7000===0){const regimes=["Bull","Bear","Sideways","Panic"];nextGame.market.regime=regimes[Math.floor(nextGame.prngSeed/4294967296*regimes.length)];}
-    const regime=nextGame.market.regime;
-    const incomeFactor=(regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1)*DIFFICULTY_RULES[nextGame.settings.difficulty].businessIncome;
-    nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
-    advanceBusinessEconomy(nextGame,1);
-    nextGame.market.minute+=1;
-    if(nextGame.market.minute>=MARKET_OPEN_MINUTE+MARKET_SESSION_MINUTES){
+    if(sessionOpen){
+      const regime=nextGame.market.regime;
+      const incomeFactor=(regime==="Bear"?.78:regime==="Panic"?.55:regime==="Bull"?1.15:1)*DIFFICULTY_RULES[nextGame.settings.difficulty].businessIncome;
+      nextGame.cash+=nextGame.buildings.reduce((sum,building)=>sum+building.income*incomeFactor,0);
+      advanceBusinessEconomy(nextGame,1);
+    }
+    nextGame.market.minute+=clockStepMinutes(nextGame.market.minute);
+    if(nextGame.market.minute>=MINUTES_PER_DAY){
       const previousDay=nextGame.market.day;
-      nextGame.market.minute=MARKET_OPEN_MINUTE;
+      nextGame.market.minute=0;
       nextGame=advanceGameDay(nextGame,nextStocks).state;
       const worth=calculateNetWorth(nextGame,nextStocks);
       nextGame.dailyHistory=[...nextGame.dailyHistory.slice(-3649),{v:worth,t:previousDay+1}];
     }
+    // Fills pending orders on the step that lands exactly on the opening bell.
     const queued=processQueuedOrders(nextGame,nextStocks);
     nextGame=queued.state;
     if(queued.filled.length)setToast(`${queued.filled.length} queued order${queued.filled.length>1?"s":""} filled at market open`);
     else if(queued.rejected.length)setToast(`${queued.rejected.length} queued order${queued.rejected.length>1?"s":""} could not be filled`);
-    const worth=calculateNetWorth(nextGame,nextStocks);
-    const last=nextGame.history.at(-1)?.t??0;
-    nextGame.history=[...nextGame.history.slice(-1949),{v:worth,t:last+1}];
-    nextGame.best=Math.max(nextGame.best,worth);
+    if(sessionOpen){
+      const worth=calculateNetWorth(nextGame,nextStocks);
+      const last=nextGame.history.at(-1)?.t??0;
+      nextGame.history=[...nextGame.history.slice(-1949),{v:worth,t:last+1}];
+      nextGame.best=Math.max(nextGame.best,worth);
+    }
   }
   const sipRun=processSips(nextGame,nextStocks);
   nextGame=sipRun.state;
   if(sipRun.paused.length)setToast(`${sipRun.paused[0].ticker} SIP paused: ${sipRun.paused[0].failureReason??"unable to execute"}`);
   if(!nextGame.eventsNextAt)nextGame.eventsNextAt=Date.now()+20000;
-  if(Date.now()>=nextGame.eventsNextAt){
+  if(isMarketOpen(nextGame)&&Date.now()>=nextGame.eventsNextAt){
     const seed=nextGame.prngSeed;
     const event=createMarketEvent(nextGame,nextStocks,seed);
     nextStocks=applyMarketEvent(nextGame,nextStocks,event);
     nextGame.prngSeed=(seed*1664525+1013904223)>>>0;
     nextGame.eventsNextAt=Date.now()+20000+(nextGame.prngSeed%40001);
   }
-  const absoluteTick=nextGame.market.day*MARKET_SESSION_MINUTES+(nextGame.market.minute-MARKET_OPEN_MINUTE);
+  const absoluteTick=sessionTick(nextGame.market.day,nextGame.market.minute);
   resolvePendingRumours(nextGame,nextStocks,absoluteTick);
   evaluateAchievements(nextGame,nextStocks);updateProgression(nextGame,nextStocks,nextGame.prngSeed);
   nextGame.market.stocks=Object.fromEntries(nextStocks.map(stock=>[stock.ticker,stock]));
@@ -183,15 +191,11 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const closeDetail=()=>setSelected(null);
  const startTrade=(side:"buy"|"sell")=>{setTradeSide(side);setUnit("Dollars");setAmount("");setModal("trade");};
  const commitStockTrade=(stock:Stock,side:"buy"|"sell",quantity:number):boolean=>{
-  const result=executeTrade(portfolioFromGame(gameRef.current),stock,side,quantity);
-  if(!result.ok){setToast(result.reason);return false;}
-  const nextGame=structuredClone(gameRef.current);const previous=nextGame.holdings[stock.ticker];
-  nextGame.cash=result.portfolio.cash;nextGame.holdings=Object.fromEntries(Object.entries(result.portfolio.holdings));nextGame.realizedPnl=result.portfolio.realizedPnl;nextGame.trades=result.portfolio.trades;
-  if(side==="buy"&&!previous)nextGame.holdSince[stock.ticker]=nextGame.market.day;
-  if(side==="sell"&&!result.portfolio.holdings[stock.ticker])delete nextGame.holdSince[stock.ticker];
-  nextGame.activity=[{type:side,ticker:stock.ticker,qty:result.quantity,price:result.executionPrice,fee:result.fee,day:nextGame.market.day},...nextGame.activity].slice(0,100);
+  const fill=applyStockTrade(gameRef.current,stock,side,quantity);
+  if(!fill.ok){setToast(fill.reason);return false;}
+  const nextGame=structuredClone(fill.state);
   evaluateAchievements(nextGame,stocksRef.current);updateProgression(nextGame,stocksRef.current,nextGame.prngSeed);gameRef.current=nextGame;setGame(nextGame);
-  playUiFeedback(nextGame,side==="buy"?760:390);setPortfolio(result.portfolio);setToast(`${side==="buy"?"Bought":"Sold"} ${result.quantity.toFixed(4)} shares of ${stock.ticker}`);
+  playUiFeedback(nextGame,side==="buy"?760:390);setPortfolio(portfolioFromGame(nextGame));setToast(`${side==="buy"?"Bought":"Sold"} ${fill.quantity.toFixed(4)} shares of ${stock.ticker}`);
   return true;
  };
  const queueStockOrder=(stock:Stock,side:"buy"|"sell",shares:number,targetPrice:number):boolean=>{
