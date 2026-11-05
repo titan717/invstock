@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, ReferenceDot, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { Check, ChevronRight, Clock3, Settings, X } from "lucide-react";
+import { Check, ChevronRight, Clock3, FastForward, Pause, Play, Settings, X, Zap } from "lucide-react";
 import { StockListRow } from "@/components/discovery/StockListRow";
 import { formatMoney, type CurrencyCode } from "@/lib/currency";
 import { MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES } from "@/lib/game-engine";
@@ -232,6 +232,7 @@ export function HomeDashboard({
                   aria-pressed={speedMode === option.mode}
                   onClick={() => { setSpeedMode(option.mode); setSpeedSheetOpen(false); }}
                 >
+                  <span className="home-speed-option-icon" aria-hidden="true">{option.mode === "Live" ? <Play size={16} data-testid="speed-icon-live" /> : option.mode === "Fast" ? <FastForward size={16} data-testid="speed-icon-fast" /> : option.mode === "Turbo" ? <Zap size={16} data-testid="speed-icon-turbo" /> : <Pause size={16} data-testid="speed-icon-paused" />}</span>
                   <span><b>{option.mode}</b><small>{option.description}</small></span>
                   {speedMode === option.mode && <span className="home-speed-check"><Check size={16} /></span>}
                 </button>
