@@ -10,14 +10,19 @@ type Props = {
   stock: Stock;
   currency?: CurrencyCode;
   onClick: () => void;
-  mode?: "price" | "volume";\n  quantity?: number;\n  value?: number;\n  changePercent?: number;
+  mode?: "price" | "volume";
+  quantity?: number;
+  value?: number;
+  changePercent?: number;
 };
 
 const signedChange = (value: number) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
 
 export function StockListRow({ stock, currency = "USD", onClick, mode = "price", quantity, value, changePercent }: Props) {
   const history = stock.history.map((value, index) => ({ index, value }));
-  const displayedChange = changePercent ?? stock.change;\n  const positive = displayedChange >= 0;\n  const accessibleQuantity = quantity === undefined ? "" : `, ${quantity.toFixed(3)} shares`;
+  const displayedChange = changePercent ?? stock.change;
+  const positive = displayedChange >= 0;
+  const accessibleQuantity = quantity === undefined ? "" : `, ${quantity.toFixed(3)} shares`;
 
   return (
     <button
@@ -31,7 +36,8 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price",
         <CompanyLogo ticker={stock.ticker} name={stock.name} size={40} className="stock-row-logo" />
         <span className="stock-row-meta">
           <b>{stock.ticker}</b>
-          <small>{stock.name}</small>\n          {quantity !== undefined && <small className="stock-row-quantity">{quantity.toFixed(3)} shares</small>}
+          <small>{stock.name}</small>
+          {quantity !== undefined && <small className="stock-row-quantity">{quantity.toFixed(3)} shares</small>}
         </span>
       </span>
       <span className={`stock-row-sparkline ${positive ? "positive" : "negative"}`} aria-hidden="true">
