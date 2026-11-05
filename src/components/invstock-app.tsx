@@ -52,7 +52,7 @@ const newsItems: {source:string;time:string;ticker:string;tone:string;title:stri
 ];
 
 function BrandMark(){return <div className="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24V17h4v7M14 24V10h4v14M23 24V5h4v19" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"/><path d="m4 13 8-5 7 2 8-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>}
-function BottomNav({active,onChange}:{active:Tab;onChange:(tab:Tab)=>void}) {
+export function BottomNav({active,onChange}:{active:Tab;onChange:(tab:Tab)=>void}) {
  const items:[Tab,typeof Home][]=[["Home",Home],["Discovery",Search],["Options",Activity],["News",Newspaper],["Account",BriefcaseBusiness]];
  return <nav className="bottom-nav" aria-label="Main navigation">{items.map(([name,Icon])=><button key={name} aria-label={name} className={active===name?"nav-item active":"nav-item"} onClick={()=>onChange(name)} aria-current={active===name?"page":undefined}><span className="nav-icon"><Icon size={20}/>{name==="Account"&&<i className="notification-dot"/>}</span><span>{name==="Discovery"?"Discover":name}</span></button>)}</nav>;
 }
