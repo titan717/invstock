@@ -31,12 +31,14 @@ type Props = {
   belowPositions?: ReactNode;
 };
 
-export function getMarketSession(marketMinute: number) {
+export type MarketSession = { isOpen: true; minutesRemaining: number } | { isOpen: false; minutesUntilOpen: number };
+
+export function getMarketSession(marketMinute: number): MarketSession {
   const closeMinute = MARKET_OPEN_MINUTE + MARKET_SESSION_MINUTES;
   const isOpen = marketMinute >= MARKET_OPEN_MINUTE && marketMinute < closeMinute;
   return isOpen
-    ? { isOpen, minutesRemaining: closeMinute - marketMinute }
-    : { isOpen, minutesUntilOpen: marketMinute < MARKET_OPEN_MINUTE
+    ? { isOpen: true, minutesRemaining: closeMinute - marketMinute }
+    : { isOpen: false, minutesUntilOpen: marketMinute < MARKET_OPEN_MINUTE
       ? MARKET_OPEN_MINUTE - marketMinute
       : 1440 - marketMinute + MARKET_OPEN_MINUTE };
 }
