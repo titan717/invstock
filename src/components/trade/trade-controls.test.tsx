@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NumberPad } from "@/components/trade/NumberPad";
 import { SwipeToSubmit } from "@/components/trade/SwipeToSubmit";
 
-describe("trade entry controls", () => {
+describe("trade entry controls", () => {\n  afterEach(cleanup);
   it("accepts digits and a single decimal up to the configured precision", () => {
     const onChange = vi.fn();
     render(<NumberPad value="12.34" onChange={onChange} maxDecimals={2} />);
