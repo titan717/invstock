@@ -57,4 +57,31 @@ describe("InvStock save restoration", () => {
     expect(nvdaRow?.querySelector(".stock-row-logo")).not.toBeNull();
     expect(nvdaRow?.querySelector(".stock-row-sparkline")).not.toBeNull();
   });
-});
+  it("keeps the Home watchlist identical to game.watchlist after a simulator reset", async () => {
+    const { container } = render(<InvStockApp />);
+    const nameInput = await screen.findByLabelText("Your name");
+    fireEvent.change(nameInput, { target: { value: "Watchlist Tester" } });
+    fireEvent.click(screen.getByRole("button", { name: /Continue/ }));
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Discover" }).find(button => button.classList.contains("nav-item"))!);
+    const nvdaRow = await screen.findByText("NVDA");
+    fireEvent.click(nvdaRow.closest("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "Save stock" }));
+    fireEvent.click(screen.getByRole("button", { name: /Back to/ }));
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Account" }).find(button => button.classList.contains("nav-item"))!);
+    fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reset simulator" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, reset everything" }));
+
+    await waitFor(() => {
+      const persisted = JSON.parse(localStorage.getItem("invstock-game-v2") ?? "null");
+      const legacyMirror = JSON.parse(localStorage.getItem("invstock-v2") ?? "null");
+      expect(legacyMirror?.saved).toEqual(persisted?.watchlist);
+      expect(persisted?.watchlist).toEqual(["MSFT", "META", "GOOGL", "COIN", "SHOP"]);
+    });
+
+    fireEvent.click(screen.getAllByRole("button", { name: "Home" }).find(button => button.classList.contains("nav-item"))!);
+    const watchlistRows = Array.from(container.querySelectorAll(".watchlist-item")).map(row => row.querySelector("[data-stock-ticker]")?.getAttribute("data-stock-ticker"));
+    expect(watchlistRows).toEqual(["MSFT", "META", "GOOGL", "COIN", "SHOP"]);
+  });
