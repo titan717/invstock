@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeDashboard, getMarketSession } from "@/components/home/HomeDashboard";
 import { createMarket } from "@/lib/market";
 
@@ -22,6 +22,17 @@ const props = {
   onAddCash: vi.fn(),
   onSettings: vi.fn()
 };
+
+beforeEach(() => {
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    value: class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+  });
+});
 
 describe("market session display", () => {
   afterEach(cleanup);
