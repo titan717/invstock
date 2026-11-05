@@ -120,7 +120,7 @@ export function HomeDashboard({
       <header className="home-dashboard-header">
         <div>
           <h1>Investing</h1>
-          <p className={`home-market-status ${session.isOpen ? "market-open" : "market-closed"}`}>
+          <p className={`home-market-status tabular-nums ${session.isOpen ? "market-open" : "market-closed"}`}>
             <span aria-hidden="true">●</span>
             {session.isOpen
               ? `Market open · closes in ${durationLabel(session.minutesRemaining)}`
@@ -139,10 +139,10 @@ export function HomeDashboard({
 
       <section className="home-net-worth-section" aria-label="Portfolio net worth">
         <p className="home-eyebrow">Net worth</p>
-        <div className={`home-net-worth${session.isOpen ? "" : " is-market-closed"}`} data-testid="home-net-worth">
+        <div className={`home-net-worth tabular-nums${session.isOpen ? "" : " is-market-closed"}`} data-testid="home-net-worth">
           {money(totalValue)}
         </div>
-        <p className={`home-daily-change ${dailyChange >= 0 ? "positive" : "negative"}`}>
+        <p className={`home-daily-change tabular-nums ${dailyChange >= 0 ? "positive" : "negative"}`}>
           {changeText}
         </p>
       </section>
@@ -167,7 +167,7 @@ export function HomeDashboard({
         <span className="home-buying-label">Buying power</span>
         <button type="button" className="home-add-cash" onClick={onAddCash}>ADD CASH</button>
         <button type="button" className="home-buying-value" onClick={onAddCash}>
-          <strong>{money(buyingPower)}</strong>
+          <strong className="tabular-nums">{money(buyingPower)}</strong>
           <ChevronRight size={18} />
         </button>
       </div>
