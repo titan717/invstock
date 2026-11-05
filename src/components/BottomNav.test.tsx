@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BottomNav } from "@/components/invstock-app";
 
-describe("bottom navigation", () => {
+describe("bottom navigation", () => {\n  afterEach(cleanup);
   it("exposes the five user-facing destinations with Discover as the label", () => {
     render(<BottomNav active="Home" onChange={() => undefined} />);
 
