@@ -60,16 +60,16 @@ function PortfolioChart({ data, previousClose, isOpen }: { data: ChartPoint[]; p
   const color = rising ? "#00D09C" : "#FF5722";
   const bounds = useMemo(() => {
     const values = data.map(point => point.value);
-    return [
-      Math.min(previousClose, ...values),
-      Math.max(previousClose, ...values)
-    ] as [number, number];
+    const minimum = Math.min(previousClose, ...values);
+    const maximum = Math.max(previousClose, ...values);
+    const padding = Math.max((maximum - minimum) * 0.06, Math.abs(maximum) * 0.001, 0.01);
+    return [minimum - padding, maximum + padding] as [number, number];
   }, [data, previousClose]);
   const current = data[data.length - 1];
 
   return (
     <div
-      className={`home-portfolio-chart${isOpen ? "" : " is-market-closed"}`}
+      className={`home-portfolio-chart ${rising ? "is-positive" : "is-negative"}${isOpen ? "" : " is-market-closed"}`}
       data-testid="home-portfolio-chart"
       role="img"
       aria-label="Portfolio value history"
