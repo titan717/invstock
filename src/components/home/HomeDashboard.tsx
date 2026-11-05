@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Area, AreaChart, ReferenceDot, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Check, ChevronRight, Clock3, Settings, X } from "lucide-react";
 import { StockListRow } from "@/components/discovery/StockListRow";
@@ -28,7 +28,7 @@ type Props = {
   onHistory: () => void;
   onAddCash: () => void;
   onSettings: () => void;
-  onChallenge?: () => void;
+  belowPositions?: ReactNode;
 };
 
 export function getMarketSession(marketMinute: number) {
@@ -106,7 +106,7 @@ const speedOptions: { mode: SpeedMode; description: string; short: string }[] = 
 export function HomeDashboard({
   marketMinute, totalValue, dailyChange, dailyChangePct, previousClose, chartData,
   currency, buyingPower, timeframe, positions, onTimeframeChange, onStockSelect,
-  onHistory, onAddCash, onSettings, onChallenge
+  onHistory, onAddCash, onSettings, belowPositions
 }: Props) {
   const [speedMode, setSpeedMode] = useState<SpeedMode>("Live");
   const [speedSheetOpen, setSpeedSheetOpen] = useState(false);
@@ -173,11 +173,11 @@ export function HomeDashboard({
       </div>
 
       <section className="home-gamification-placeholder" aria-label="Upcoming dashboard features">
-        <button type="button" onClick={onChallenge}>
+        <div className="home-placeholder-static">
           <span className="home-placeholder-icon"><Clock3 size={17} /></span>
-          <span><b>Weekly challenge</b><small>Challenge highlights</small></span>
-          <span className="home-placeholder-soon">Preview</span>
-        </button>
+          <span><b>Weekly challenge</b><small>Challenge highlights are being refreshed</small></span>
+          <span className="home-placeholder-soon">Coming soon</span>
+        </div>
         <button type="button" onClick={onAddCash}>
           <span className="home-placeholder-icon"><span aria-hidden="true">＋</span></span>
           <span><b>Virtual cash</b><small>Add funds to your buying power</small></span>
@@ -202,6 +202,7 @@ export function HomeDashboard({
           />
         )) : <p className="home-empty-positions">Your positions will appear here after your first trade.</p>}
       </div>
+      {belowPositions}
 
       {speedSheetOpen && (
         <div className="home-speed-backdrop" onClick={() => setSpeedSheetOpen(false)}>
