@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Bookmark, BriefcaseBusiness, Check, ChevronDown, Coins, ChevronRight, CircleHelp, Clock3, Crown, Flame, Home, Landmark, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Wallet, X, Zap } from "lucide-react";
+import { Activity, ArrowDownLeft, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Bookmark, BriefcaseBusiness, Check, ChevronDown, Coins, ChevronRight, CircleHelp, Clock3, Compass, Crown, Flame, Home, Landmark, Layers, ListFilter, Menu, Minus, Newspaper, Play, Plus, Search, Settings, ShieldCheck, SlidersHorizontal, Sparkles, Target, TrendingDown, TrendingUp, Trophy, User, Wallet, X, Zap } from "lucide-react";
 import { advanceMarket, createMarket, type Stock } from "@/lib/market";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { executeTrade, initialPortfolio, type Portfolio } from "@/lib/simulator";
@@ -53,8 +53,8 @@ const newsItems: {source:string;time:string;ticker:string;tone:string;title:stri
 
 function BrandMark(){return <div className="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24V17h4v7M14 24V10h4v14M23 24V5h4v19" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"/><path d="m4 13 8-5 7 2 8-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>}
 export function BottomNav({active,onChange}:{active:Tab;onChange:(tab:Tab)=>void}) {
- const items:[Tab,typeof Home][]=[["Home",Home],["Discovery",Search],["Options",Activity],["News",Newspaper],["Account",BriefcaseBusiness]];
- return <nav className="bottom-nav" aria-label="Main navigation">{items.map(([name,Icon])=><button key={name} aria-label={name} className={active===name?"nav-item active":"nav-item"} onClick={()=>onChange(name)} aria-current={active===name?"page":undefined}><span className="nav-icon"><Icon size={20}/>{name==="Account"&&<i className="notification-dot"/>}</span><span>{name==="Discovery"?"Discover":name}</span></button>)}</nav>;
+ const items:[Tab,string,typeof Home][]=[["Home","Home",Home],["Discovery","Discover",Compass],["Options","Options",Layers],["News","News",Newspaper],["Account","Account",User]];
+ return <nav className="bottom-nav" aria-label="Main navigation">{items.map(([name,label,Icon])=><button key={name} aria-label={label} className={active===name?"nav-item active":"nav-item"} onClick={()=>onChange(name)} aria-current={active===name?"page":undefined}><span className="nav-icon"><Icon size={20} strokeWidth={2}/></span><span>{label}</span></button>)}</nav>;
 }
 function Sparkline({stock}:{stock:Stock}) {const data=stock.history.map((v,i)=>({i,v}));const rising=data.length<2||data[data.length-1].v>=data[0].v;return <div className={`sparkline ${rising?"chart-positive":"chart-negative"}`}><ResponsiveContainer width="100%" height="100%"><LineChart data={data}><Line type="monotone" dataKey="v" stroke={rising?"#00D09C":"#FF5722"} strokeWidth={1.5} dot={false} isAnimationActive={false}/></LineChart></ResponsiveContainer></div>}
 function StockLogo({stock,size=40}:{stock:Stock;size?:number}) {return <CompanyLogo ticker={stock.ticker} name={stock.name} size={size}/>;}
