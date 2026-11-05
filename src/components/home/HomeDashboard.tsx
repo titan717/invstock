@@ -232,8 +232,7 @@ export function HomeDashboard({
                   aria-pressed={speedMode === option.mode}
                   onClick={() => { setSpeedMode(option.mode); setSpeedSheetOpen(false); }}
                 >
-                  <span className="home-speed-option-icon" aria-hidden="true">{option.mode === "Live" ? <Play size={16} data-testid="speed-icon-live" /> : option.mode === "Fast" ? <FastForward size={16} data-testid="speed-icon-fast" /> : option.mode === "Turbo" ? <Zap size={16} data-testid="speed-icon-turbo" /> : <Pause size={16} data-testid="speed-icon-paused" />}</span>
-                  <span><b>{option.mode}</b><small>{option.description}</small></span>
+                  <span className="home-speed-option-copy"><span className="home-speed-option-icon" aria-hidden="true">{option.mode === "Live" ? <Play size={16} data-testid="speed-icon-live" /> : option.mode === "Fast" ? <FastForward size={16} data-testid="speed-icon-fast" /> : option.mode === "Turbo" ? <Zap size={16} data-testid="speed-icon-turbo" /> : <Pause size={16} data-testid="speed-icon-paused" />}</span><span><b>{option.mode}</b><small>{option.description}</small></span></span>
                   {speedMode === option.mode && <span className="home-speed-check"><Check size={16} /></span>}
                 </button>
               ))}
