@@ -67,6 +67,10 @@ describe("InvStock save restoration", () => {
     const nvdaRow = await screen.findByText("NVDA");
     fireEvent.click(nvdaRow.closest("button")!);
     fireEvent.click(screen.getByRole("button", { name: "Save stock" }));
+    await waitFor(() => {
+      const savedGame = JSON.parse(localStorage.getItem("invstock-game-v2") ?? "null");
+      expect(savedGame?.watchlist).toContain("NVDA");
+    });
     fireEvent.click(screen.getByRole("button", { name: /Back to/ }));
 
     fireEvent.click(screen.getAllByRole("button", { name: "Account" }).find(button => button.classList.contains("nav-item"))!);
