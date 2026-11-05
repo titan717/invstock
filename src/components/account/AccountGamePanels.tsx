@@ -36,11 +36,12 @@ type Props={
   onSpeed:(speed:number)=>void;
   onSetting:(key:"sound"|"haptics"|"currency"|"difficulty",value:boolean|CurrencyCode|Difficulty)=>void;
   onImport:(json:string)=>void;onExport:()=>void;onReset:()=>void;
+  initialPanel?: Panel;
 };
 
 
-export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onPropertyBuy,onPropertyUpgrade,onPropertySell,onComplianceReview,onComplianceHire,onInvestigationResolve,onLegacyUpgrade,onRebirth,onSpeed,onSetting,onImport,onExport,onReset}:Props) {
-  const [panel,setPanel]=useState<Panel>("Bank");
+export function AccountGamePanels({state,stocks,onBank,onBuilding,onCryptoTrade,onBusinessBuy,onBusinessHire,onBusinessFire,onBusinessPromote,onBusinessUpgrade,onBusinessStrategy,onBusinessRelocate,onBusinessSell,onPropertyBuy,onPropertyUpgrade,onPropertySell,onComplianceReview,onComplianceHire,onInvestigationResolve,onLegacyUpgrade,onRebirth,onSpeed,onSetting,onImport,onExport,onReset,initialPanel="Bank"}:Props) {
+  const [panel,setPanel]=useState<Panel>(initialPanel);
   const [amount,setAmount]=useState("100");
   const [cryptoAmount,setCryptoAmount]=useState("0.01");
   const [businessCity,setBusinessCity]=useState("Bengaluru");
