@@ -812,3 +812,25 @@ select:focus-visible {
   font-size: 13px;
   text-align: center;
 }
+
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 2px 0 20px;
+}
+.page-heading h1 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -.9px;
+}
+.page-heading .eyebrow {
+  margin: 0 0 5px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .13em;
+}
