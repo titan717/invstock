@@ -188,7 +188,7 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     cash:number(source.cash,defaults.cash),savings:number(source.savings),loan:number(source.loan),
     holdings,cryptoHoldings:object(source.cryptoHoldings) as Record<string,CryptoHolding>,cryptoMarket:Array.isArray(source.cryptoMarket)?source.cryptoMarket:defaults.cryptoMarket,businesses:Array.isArray(source.businesses)?source.businesses:[],realEstate:Array.isArray(source.realEstate)?source.realEstate:[],lastActiveAt:number(source.lastActiveAt),buildings:Array.isArray(source.buildings)?source.buildings:[],
     activity:Array.isArray(source.activity)?source.activity:[],trades:number(source.trades),realizedPnl:number(source.realizedPnl),
-    achievements:strings(source.achievements),watchlist:strings(source.watchlist).length?strings(source.watchlist):defaults.watchlist,
+    achievements:strings(source.achievements),watchlist:Array.isArray(source.watchlist)?strings(source.watchlist):defaults.watchlist,
     settings:{...defaults.settings,...object(source.settings),theme:"dark",speed:number(object(source.settings).speed,1),currency:["USD","INR","EUR","GBP","AED","JPY"].includes(object(source.settings).currency)?object(source.settings).currency:"USD",difficulty:["easy","normal","hard","expert"].includes(object(source.settings).difficulty)?object(source.settings).difficulty:"normal"},
     history:Array.isArray(source.history)?source.history.slice(-1950):[],
     dailyHistory:Array.isArray(source.dailyHistory)?source.dailyHistory.slice(-3650):[],
