@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { PwaSupport } from "@/components/pwa/PwaSupport";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata: Metadata = {
   title: "InvStock — Practice the market",
@@ -19,5 +20,5 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>{children}<PwaSupport /></body></html>;
+  return <html lang="en"><body>{children}<PwaSupport /><SpeedInsights /></body></html>;
 }
