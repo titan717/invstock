@@ -223,8 +223,8 @@ select:focus-visible {
 }
 .home-timeframes button.selected {
   border-color: #FFFFFF;
-  background: #FFFFFF;
-  color: #000000;
+  background: transparent;
+  color: #FFFFFF;
 }
 .home-buying-power {
   display: grid;
