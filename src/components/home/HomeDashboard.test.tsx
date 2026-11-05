@@ -58,6 +58,10 @@ describe("market session display", () => {
     render(<HomeDashboard {...props} />);
     fireEvent.click(screen.getByRole("button", { name: "Market speed" }));
     expect(screen.getByRole("dialog", { name: "Market speed" })).toBeTruthy();
+    expect(screen.getByTestId("speed-icon-live")).toBeTruthy();
+    expect(screen.getByTestId("speed-icon-fast")).toBeTruthy();
+    expect(screen.getByTestId("speed-icon-turbo")).toBeTruthy();
+    expect(screen.getByTestId("speed-icon-paused")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /Fast.*1 hour per real minute/ }));
     expect(screen.getByRole("button", { name: "Market speed" }).textContent).toContain("Fast");
     expect(props.onTimeframeChange).not.toHaveBeenCalled();
