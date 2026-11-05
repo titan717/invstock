@@ -659,3 +659,6 @@ select:focus-visible {
   white-space: nowrap;
 }
 .mission-row > button:disabled { color: var(--text-secondary); opacity: .65; }
+
+.home-portfolio-chart.is-positive .recharts-reference-dot circle { filter: drop-shadow(0 0 5px #00D09C); }
+.home-portfolio-chart.is-negative .recharts-reference-dot circle { filter: drop-shadow(0 0 5px #FF5722); }
