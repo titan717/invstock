@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { NumberPad } from "@/components/trade/NumberPad";
 import { SwipeToSubmit } from "@/components/trade/SwipeToSubmit";
 
-describe("trade entry controls", () => {\n  afterEach(cleanup);
+describe("trade entry controls", () => {
+  afterEach(cleanup);
   it("accepts digits and a single decimal up to the configured precision", () => {
     const onChange = vi.fn();
     render(<NumberPad value="12.34" onChange={onChange} maxDecimals={2} />);
