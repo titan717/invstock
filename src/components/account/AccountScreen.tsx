@@ -280,7 +280,7 @@ export function AccountScreen({ state, stocks, totalValue, currency, initialView
               <li key={entry.name} className={`flex items-center gap-3 rounded-lg px-2 py-2.5 ${entry.you ? "bg-[#0A3D33]/40" : ""}`}>
                 <b className={`w-5 text-[15px] tabular-nums ${index < 3 ? "text-[#F5C542]" : "text-white"}`}>{index + 1}</b>
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2C2C2E] text-[#00D09C]">{entry.you ? <User size={16} /> : <Bot size={16} />}</span>
-                <span className="min-w-0 flex-1"><b className="block text-[14px] text-white">{entry.name}</b><small className="block truncate text-[12px] text-[#8E8E93]">{entry.detail}</small></span>
+                <span className="min-w-0 flex-1"><b className="block text-[14px] text-white">{entry.name}</b><small className="block text-[12px] leading-4 text-[#8E8E93]">{entry.detail}</small></span>
                 <b className={`text-[14px] tabular-nums ${entry.returnPct === null ? "text-[#8E8E93]" : tone(entry.returnPct)}`}>{entry.returnPct === null ? "—" : signedPct(entry.returnPct)}</b>
               </li>
             ))}</ol>
