@@ -410,6 +410,9 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     isMarketOpen={isMarketOpen(game)}
     chartHistory={selected.history.slice(-78)}
     tradeSide={tradeSide}
+    sharesAvailable={game.holdings[selected.ticker]?.quantity??0}
+    sessionProgress={isMarketOpen(game)?(game.market.minute-MARKET_OPEN_MINUTE)/MARKET_SESSION_MINUTES:1}
+    dayChangePct={stockByTicker(selected.ticker)?.change??selected.change}
     onBack={()=>setModal(null)}
     onExecuteTrade={({side,shares})=>commitStockTrade(selected,side,shares)}
     onQueueOrder={({side,shares,targetPrice})=>queueStockOrder(selected,side,shares,targetPrice)}
