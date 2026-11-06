@@ -15,9 +15,10 @@ describe("company branding", () => {
 
   it("shows the ticker fallback when the remote company logo fails", () => {
     render(<CompanyLogo ticker="MSFT" name="Microsoft" />);
-    const logo = screen.getByRole("img", {name:"Microsoft logo"});
-    fireEvent.error(logo);
-    fireEvent.error(screen.getByRole("img", {name:"Microsoft logo"}));
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const logo = screen.queryByRole("img", {name:"Microsoft logo"});
+      if (logo) fireEvent.error(logo);
+    }
     expect(screen.getByText("MS")).toBeTruthy();
   });
 });

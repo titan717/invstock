@@ -433,14 +433,14 @@ select:focus-visible {
   white-space: nowrap;
 }
 .stock-change-pill {
-  border-radius: var(--radius-pill);
-  padding: 3px 6px;
-  font-size: 9px;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
-.stock-change-pill.positive { background: rgba(0, 208, 156, .13); color: var(--primary); }
-.stock-change-pill.negative { background: rgba(255, 87, 34, .13); color: var(--danger); }
+.stock-change-pill.positive { background: #00D09C; color: #000000; }
+.stock-change-pill.negative { background: #FF5722; color: #FFFFFF; }
 .home-extras {
   margin: 18px 0 25px;
   border: 1px solid var(--surface-light);

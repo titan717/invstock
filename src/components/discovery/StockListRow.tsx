@@ -1,6 +1,6 @@
 "use client";
 
-import { Line, LineChart, ResponsiveContainer } from "recharts";
+import { Line, LineChart, ReferenceLine, ResponsiveContainer, YAxis } from "recharts";
 import { CompanyLogo } from "@/components/market/CompanyLogo";
 import { formatMoney } from "@/lib/currency";
 import type { CurrencyCode } from "@/lib/currency";
@@ -14,11 +14,13 @@ type Props = {
   quantity?: number;
   value?: number;
   changePercent?: number;
+  /** Replaces the company name line (Home positions show only the share count). */
+  subtitle?: string;
 };
 
 const signedChange = (value: number) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toFixed(2)}%`;
 
-export function StockListRow({ stock, currency = "USD", onClick, mode = "price", quantity, value, changePercent }: Props) {
+export function StockListRow({ stock, currency = "USD", onClick, mode = "price", quantity, value, changePercent, subtitle }: Props) {
   const history = stock.history.map((value, index) => ({ index, value }));
   const displayedChange = changePercent ?? stock.change;
   const positive = displayedChange >= 0;
@@ -36,13 +38,15 @@ export function StockListRow({ stock, currency = "USD", onClick, mode = "price",
         <CompanyLogo ticker={stock.ticker} name={stock.name} size={40} className="stock-row-logo" />
         <span className="stock-row-meta">
           <b>{stock.ticker}</b>
-          <small>{stock.name}</small>
-          {quantity !== undefined && <small className="stock-row-quantity tabular-nums">{quantity.toFixed(3)} shares</small>}
+          {subtitle !== undefined ? <small className="tabular-nums">{subtitle}</small> : <small>{stock.name}</small>}
+          {quantity !== undefined && subtitle === undefined && <small className="stock-row-quantity tabular-nums">{quantity.toFixed(3)} shares</small>}
         </span>
       </span>
       <span className={`stock-row-sparkline ${positive ? "positive" : "negative"}`} aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={history}>
+          <LineChart data={history} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+            <YAxis hide domain={["dataMin", "dataMax"]} />
+            {history.length > 0 && <ReferenceLine y={history[0].value} stroke="#8E8E93" strokeDasharray="2 3" strokeOpacity={0.7} />}
             <Line
               type="monotone"
               dataKey="value"

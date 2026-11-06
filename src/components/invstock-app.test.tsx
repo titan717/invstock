@@ -82,7 +82,7 @@ describe("InvStock save restoration", () => {
     });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Home" }).find(button => button.classList.contains("nav-item"))!);
-    const watchlistRows = Array.from(container.querySelectorAll(".watchlist-item")).map(row => row.querySelector("[data-stock-ticker]")?.getAttribute("data-stock-ticker"));
+    const watchlistRows = Array.from(container.querySelectorAll("[data-home-list] [data-stock-ticker]")).map(row => row.getAttribute("data-stock-ticker"));
     expect(watchlistRows).toEqual(["MSFT", "META", "GOOGL", "COIN", "SHOP"]);
   });
 });

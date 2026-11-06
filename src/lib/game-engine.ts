@@ -2,6 +2,7 @@ import type { Stock } from "@/lib/market";
 import type { CurrencyCode, Difficulty } from "@/lib/currency";
 import { createCryptoMarket, executeCryptoTrade, type CryptoAsset, type CryptoHolding } from "@/lib/crypto";
 import { optionValue } from "@/lib/options-engine";
+import { createRewards, hydrateRewards, type RewardsState } from "@/lib/rewards";
 import { purchaseBusiness, hireEmployee, fireEmployee, promoteEmployee, upgradeBusiness, setBusinessStrategy, relocateBusiness, simulateBusinessMinutes, type Business, type BusinessStrategy, type EmployeeRole } from "@/lib/business-engine";
 import { purchaseProperty, upgradeProperty, sellProperty, simulatePropertyMinutes, type RealEstateProperty } from "@/lib/real-estate";
 import { createScrutinyState, evaluateFinancialScrutiny, hireComplianceOfficer, resolveInvestigation, type ScrutinyState, type ScrutinySignals, type InvestigationAction } from "@/lib/compliance-engine";
@@ -58,6 +59,9 @@ export type GameState = {
   priceAlerts: PriceAlert[];
   recentlyViewed: string[];
   optionPositions: OptionPosition[];
+  rewards: RewardsState;
+  /** Remaining trading days on the personal-loan EMI plan; 0 means the default 2% daily minimum. */
+  loanTermDays: number;
   holdSince: Record<string, number>;
   best: number;
   start: number;
@@ -153,7 +157,7 @@ function hydratePriceAlerts(value: unknown): PriceAlert[] {
 }
 
 export function createGameState(seed=731991): GameState {
-  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],benchmarkHistory:[],priceAlerts:[],recentlyViewed:[],optionPositions:[],holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState(),clock:createMarketClock(1,MARKET_OPEN_MINUTE),queuedOrders:[],sips:[]};
+  return {version:4,profileName:"",xp:0,rank:"Apprentice",missions:createDefaultMissions(),weeklyChallenge:createWeeklyChallenge(1,10000),cash:5000,savings:0,loan:0,holdings:{},buildings:[],activity:[],trades:0,realizedPnl:0,achievements:[],watchlist:["MSFT","META","GOOGL","COIN","SHOP"],settings:{...defaultSettings},history:[],dailyHistory:[],benchmarkHistory:[],priceAlerts:[],recentlyViewed:[],optionPositions:[],rewards:createRewards(),loanTermDays:0,holdSince:{},best:10000,start:10000,lastDay:1,lastBankDay:1,lastDividendDay:0,market:{regime:"Sideways",day:1,minute:MARKET_OPEN_MINUTE,marketFactor:0,sectorFactors:{},stocks:{}},news:[],pendingNews:[],prngSeed:seed>>>0,eventsNextAt:0,orphanedPositions:{},cryptoHoldings:{},cryptoMarket:createCryptoMarket(seed),businesses:[],realEstate:[],lastActiveAt:0,scrutiny:createScrutinyState(),legacy:createLegacyState(),clock:createMarketClock(1,MARKET_OPEN_MINUTE),queuedOrders:[],sips:[]};
 }
 
 export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
@@ -179,6 +183,8 @@ export function migrateLegacySave(raw: unknown, stocks: Stock[]): GameState {
   state.benchmarkHistory=Array.isArray(source.benchmarkHistory)?source.benchmarkHistory.slice(-3650):[];
   state.priceAlerts=hydratePriceAlerts(source.priceAlerts);
   state.optionPositions=hydrateOptionPositions(source.optionPositions);
+  state.rewards=hydrateRewards(source.rewards);
+  state.loanTermDays=Math.max(0,Math.floor(number(source.loanTermDays)));
   state.recentlyViewed=Array.isArray(source.recentlyViewed)?source.recentlyViewed.filter((item:unknown):item is string=>typeof item==="string").slice(0,12):[];
   state.holdSince=object(source.holdSince) as Record<string,number>;
   state.best=number(source.best,state.best);state.start=number(source.start,state.start);
@@ -227,6 +233,8 @@ export function hydrateGameState(raw:unknown,stocks:Stock[]):GameState {
     benchmarkHistory:Array.isArray(source.benchmarkHistory)?source.benchmarkHistory.slice(-3650):[],
     priceAlerts:hydratePriceAlerts(source.priceAlerts),
     optionPositions:hydrateOptionPositions(source.optionPositions),
+    rewards:hydrateRewards(source.rewards),
+    loanTermDays:Math.max(0,Math.floor(number(source.loanTermDays))),
     recentlyViewed:Array.isArray(source.recentlyViewed)?source.recentlyViewed.filter((item:unknown):item is string=>typeof item==="string").slice(0,12):[],
     holdSince:object(source.holdSince) as Record<string,number>,
     market:{...defaults.market,...market,regime:String(market.regime??"Sideways"),day:number(market.day,1),minute:number(market.minute,MARKET_OPEN_MINUTE),sectorFactors:object(market.sectorFactors) as Record<string,number>,stocks:object(market.stocks)},
@@ -267,6 +275,21 @@ export function calculateNetWorth(state:GameState, stocks:Stock[]):number {
 function result(state:GameState,ok:boolean,reason=""):GameActionResult {
   return ok?{ok:true,state}:{ok:false,state,reason};
 }
+/** Equal daily installment (EMI) that clears `principal` over `days` trading days at `apr`. */
+export function loanInstallment(principal:number,apr:number,days:number):number {
+  const rate=apr/365;
+  if(days<=0)return principal;
+  return rate===0?principal/days:principal*rate/(1-Math.pow(1+rate,-days));
+}
+
+/** Takes a personal loan on an EMI plan. Existing balance is folded into the new plan. */
+export function takePersonalLoan(state:GameState,stocks:Stock[],amount:number,days:number):GameActionResult {
+  if(!Number.isFinite(days)||days<1)return result(state,false,"Choose a repayment plan.");
+  const outcome=bankAction(state,stocks,"borrow",amount);
+  if(outcome.ok)outcome.state.loanTermDays=Math.floor(days);
+  return outcome;
+}
+
 export function bankAction(state:GameState, stocks:Stock[], action:"deposit"|"withdraw"|"borrow"|"repay", amount:number):GameActionResult {
   if(!Number.isFinite(amount)||amount<=0)return result(state,false,"Enter an amount greater than zero.");
   if(action==="deposit"){if(amount>state.cash)return result(state,false,"Not enough cash to deposit.");state.cash-=amount;state.savings+=amount;state.activity.unshift({type:"deposit",amount,day:state.market.day});}
@@ -546,7 +569,12 @@ export function advanceGameDay(state:GameState, stocks:Stock[]):{state:GameState
   const difficulty=DIFFICULTY_RULES[state.settings.difficulty];
   state.savings*=1+difficulty.savingsApy/365;
   state.loan*=1+difficulty.loanApr/365;
-  if(state.loan>0){const minimum=state.loan*.02;if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;}else{state.loan*=1+difficulty.missedPaymentPenalty;}}
+  if(state.loan>0){
+    const term=Math.max(0,Math.floor(state.loanTermDays??0));
+    const minimum=term>0?(term<=1?state.loan:loanInstallment(state.loan,difficulty.loanApr,term)):state.loan*.02;
+    if(state.cash>=minimum){state.cash-=minimum;state.loan-=minimum;if(term>0)state.loanTermDays=term-1;}else{state.loan*=1+difficulty.missedPaymentPenalty;}
+  }
+  if(state.loan<=.005){state.loan=0;state.loanTermDays=0;}
   state.market.day=day;state.lastBankDay=day;
   if(state.loan>calculateNetWorth(state,stocks)+state.loan&&state.loan>0){
     const largest=Object.entries(state.holdings).sort((a,b)=>b[1].quantity*(stocks.find(s=>s.ticker===b[0])?.price??0)-a[1].quantity*(stocks.find(s=>s.ticker===a[0])?.price??0))[0];
