@@ -33,7 +33,7 @@ export function createDefaultMissions():GameMission[]{return [
   {id:"first-property",title:"Build your first asset",description:"Acquire a property in the property market.",metric:"properties",target:1,progress:0,reward:250,xpReward:80,claimed:false},
   {id:"portfolio-growth",title:"Grow your portfolio",description:"Increase net worth by $250 from starting capital.",metric:"growth",target:250,progress:0,reward:200,xpReward:60,claimed:false}
 ];}
-export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Alex Momentum",returnPct:0,risk:.9},{name:"Taylor Value",returnPct:0,risk:.45},{name:"Jordan Quant",returnPct:0,risk:.7},{name:"Casey Contrarian",returnPct:0,risk:1.15}],reward:500,claimed:false};}
+export function createWeeklyChallenge(week:number,startValue:number):WeeklyChallenge{return {week,joined:false,startValue,bots:[{name:"Index Bot",returnPct:0,risk:.7},{name:"Momentum Bot",returnPct:0,risk:.9},{name:"Value Bot",returnPct:0,risk:.45},{name:"Options Bot",returnPct:0,risk:1.15}],reward:500,claimed:false};}
 export type GameState = {
   version: 4;
   profileName: string;
