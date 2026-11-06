@@ -15,6 +15,6 @@ export function CompanyLogo({ticker,name,size=40,className=""}:Props) {
       ? `https://www.google.com/s2/favicons?domain=${identity.domain}&sz=128`
       : null;
   return <span className={`company-logo ${className}`} style={{width:size,height:size,backgroundColor:fallbackColor}} aria-label={`${name} (${ticker})`}>
-    {src ? <img src={src} alt={`${name} logo`} loading="lazy" onError={()=>setFallbackLevel(level=>level+1)} /> : <span className="company-logo-fallback" aria-label={ticker}>{identity.fallback.slice(0,2)}</span>}
+    {src ? <img key={src} src={src} alt={`${name} logo`} loading="lazy" ref={node=>{if(node&&node.complete&&node.naturalWidth===0)setFallbackLevel(level=>level===fallbackLevel?level+1:level);}} onError={()=>setFallbackLevel(level=>level===fallbackLevel?level+1:level)} /> : <span className="company-logo-fallback" aria-label={ticker}>{identity.fallback.slice(0,2)}</span>}
   </span>;
 }

@@ -54,17 +54,36 @@ describe("market session display", () => {
     expect(screen.getByRole("button", { name: "1D" })).toBeTruthy();
   });
 
-  it("opens the visual-only speed sheet and selects a mode without changing simulator settings", () => {
-    render(<HomeDashboard {...props} />);
+  it("opens the market speed sheet and reports the chosen engine speed", () => {
+    const onSpeedChange = vi.fn();
+    render(<HomeDashboard {...props} speed={1} onSpeedChange={onSpeedChange} />);
+    expect(screen.getByRole("button", { name: "Market speed" }).textContent).toBe("1x");
     fireEvent.click(screen.getByRole("button", { name: "Market speed" }));
     expect(screen.getByRole("dialog", { name: "Market speed" })).toBeTruthy();
-    expect(screen.getByTestId("speed-icon-live")).toBeTruthy();
-    expect(screen.getByTestId("speed-icon-fast")).toBeTruthy();
-    expect(screen.getByTestId("speed-icon-turbo")).toBeTruthy();
-    expect(screen.getByTestId("speed-icon-paused")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /Fast.*1 hour per real minute/ }));
-    expect(screen.getByRole("button", { name: "Market speed" }).textContent).toContain("Fast");
-    expect(props.onTimeframeChange).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Turbo/ }));
+    expect(onSpeedChange).toHaveBeenCalledWith(390);
+  });
+
+  it("shows the weekly challenge, reward banners, lists and top movers", () => {
+    const onViewChallenge = vi.fn(), onDailyBonus = vi.fn(), onVideoBonus = vi.fn();
+    const market = createMarket(731991);
+    render(<HomeDashboard {...props} day={6} challenge={{ joined: true, rank: 2, entrants: 5, returnPct: 1.5 }} missionReady bonusReady videosLeft={3} watchlist={market.slice(1, 3)} movers={market.slice(3, 6)} onViewChallenge={onViewChallenge} onDailyBonus={onDailyBonus} onVideoBonus={onVideoBonus} />);
+    expect(screen.getByText(/Mon, Jan 12/)).toBeTruthy();
+    expect(screen.getByText("#2")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "View challenge" }));
+    fireEvent.click(screen.getByRole("button", { name: "Daily login bonus available" }));
+    fireEvent.click(screen.getByText(/Watch a short video/));
+    expect(onViewChallenge).toHaveBeenCalled();
+    expect(onDailyBonus).toHaveBeenCalled();
+    expect(onVideoBonus).toHaveBeenCalled();
+    expect(screen.getByText("A mission reward is ready to claim")).toBeTruthy();
+    expect(screen.getByText("Top movers")).toBeTruthy();
+    expect(screen.getByText(market[3].ticker)).toBeTruthy();
+  });
+
+  it("labels the change by timeframe", () => {
+    render(<HomeDashboard {...props} timeframe="ALL" />);
+    expect(screen.getByText(/All time$/)).toBeTruthy();
   });
 
   it("dims the net worth and chart when the simulated market is closed", () => {

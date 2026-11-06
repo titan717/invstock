@@ -27,14 +27,39 @@ describe("rankProgress", () => {
 });
 
 describe("buildMonthlyStatements", () => {
-  it("splits the game into 30-day months using daily history", () => {
+  it("splits the game into calendar months on the trading calendar", () => {
     const state = createGameState();
-    state.market.day = 45;
-    state.dailyHistory = [{ v: 10000, t: 0 }, { v: 11000, t: 30 }];
+    state.market.day = 25;
+    state.dailyHistory = [{ v: 10000, t: 0 }, { v: 11000, t: 20 }];
     const [current, first] = buildMonthlyStatements(state, 12100);
-    expect(first).toMatchObject({ month: 1, inProgress: false, startingValue: 10000, endingValue: 11000, deposits: 10000 });
+    expect(first).toMatchObject({ label: "January 2026", startDay: 1, endDay: 20, inProgress: false, startingValue: 10000, endingValue: 11000, deposits: 0 });
     expect(first.returnPct).toBeCloseTo(10);
-    expect(current).toMatchObject({ month: 2, inProgress: true, startingValue: 11000, endingValue: 12100 });
+    expect(current).toMatchObject({ label: "February 2026", startDay: 21, inProgress: true, startingValue: 11000, endingValue: 12100 });
+  });
+
+  it("counts bonus and virtual cash as deposits instead of returns", () => {
+    const state = createGameState();
+    state.market.day = 25;
+    state.start = 10200;
+    state.activity = [{ type: "login-bonus", amount: 200, day: 3 }];
+    state.dailyHistory = [{ v: 11000, t: 20 }];
+    const first = buildMonthlyStatements(state, 12100).at(-1)!;
+    expect(first).toMatchObject({ startingValue: 10000, deposits: 200 });
+    expect(first.returnPct).toBeCloseTo((11000 - 10200) / 10200 * 100);
+  });
+});
+
+describe("weekly challenge view", () => {
+  it("shows the ISO week, bots with strategies and the rules", () => {
+    const state = createGameState();
+    const handlers = { onOpenStock: vi.fn(), onClaimMission: vi.fn(), onJoinChallenge: vi.fn(), onClaimChallenge: vi.fn(), onOpenSettings: vi.fn(), onAddCash: vi.fn(), onUnavailable: vi.fn() };
+    render(<AccountScreen state={state} stocks={stocks} totalValue={10000} currency="USD" initialView="challenge" empirePanels={null} {...handlers} />);
+    expect(screen.getByText("Week 2026-W02")).toBeTruthy();
+    expect(screen.getByText("Buys the cheapest stocks by P/E")).toBeTruthy();
+    expect(screen.getByText("Not joined yet")).toBeTruthy();
+    expect(screen.getByText("Rules")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Join challenge" }));
+    expect(handlers.onJoinChallenge).toHaveBeenCalled();
   });
 });
 

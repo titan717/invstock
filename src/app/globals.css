@@ -433,14 +433,14 @@ select:focus-visible {
   white-space: nowrap;
 }
 .stock-change-pill {
-  border-radius: var(--radius-pill);
-  padding: 3px 6px;
-  font-size: 9px;
+  border-radius: 5px;
+  padding: 2px 7px;
+  font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
 }
-.stock-change-pill.positive { background: rgba(0, 208, 156, .13); color: var(--primary); }
-.stock-change-pill.negative { background: rgba(255, 87, 34, .13); color: var(--danger); }
+.stock-change-pill.positive { background: #00D09C; color: #000000; }
+.stock-change-pill.negative { background: #FF5722; color: #FFFFFF; }
 .home-extras {
   margin: 18px 0 25px;
   border: 1px solid var(--surface-light);
@@ -797,13 +797,8 @@ select:focus-visible {
   font-size: 11px;
   font-weight: 750;
 }
-.discovery-stock-list {
-  overflow: hidden;
-  border: 1px solid rgba(142, 142, 147, .12);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-.discovery-stock-list .stock-list-row { min-height: 68px; }
+.discovery-stock-list { background: transparent; }
+.discovery-stock-list .stock-list-row { min-height: 60px; padding-left: 0; padding-right: 0; border-bottom: 0; background: transparent; }
 .discovery-search-results { margin-top: 5px; }
 .discovery-empty-state {
   margin: 0;
@@ -839,3 +834,8 @@ select:focus-visible {
 .payoff-slider { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; background: #3A3A3C; outline: none; }
 .payoff-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; border: 0; }
 .payoff-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; border: 0; }
+
+/* Loans: amount slider (track fill is set inline). */
+.loan-slider { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none; }
+.loan-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); cursor: pointer; }
+.loan-slider::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; cursor: pointer; }

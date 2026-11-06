@@ -11,15 +11,21 @@ import { AccountScreen, type AccountView } from "@/components/account/AccountScr
 import { SettingsScreen, speedLabel, type SettingKey, type SettingValue } from "@/components/settings/SettingsScreen";
 import { startAmbientMusic, stopAmbientMusic } from "@/lib/ambient-music";
 import { applyLiveQuotes, type LiveQuoteMap } from "@/lib/live-quotes";
+import { shortGameDate } from "@/lib/game-calendar";
+import { NetWorthScreen } from "@/components/networth/NetWorthScreen";
+import { LoansScreen } from "@/components/loans/LoansScreen";
+import { NewsScreen } from "@/components/news/NewsScreen";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { StockListRow } from "@/components/discovery/StockListRow";
-import { HomeDashboard } from "@/components/home/HomeDashboard";
+import { HomeDashboard, type HomeChallenge } from "@/components/home/HomeDashboard";
+import { AddCashSheet, DailyBonusSheet } from "@/components/ui/Sheets";
+import { addVirtualCash, claimDailyBonus, claimVideoBonus, dailyBonusStatus, videosLeft, type RewardResult } from "@/lib/rewards";
 import { OptionsChain } from "@/components/options/OptionsChain";
 import { buyOption, sellOption, settleExpiredOptions } from "@/lib/options-trading";
 import { StockDetail } from "@/components/stock/StockDetail";
 import { FinancialsScreen } from "@/components/stock/FinancialsScreen";
 import { addPriceAlert, createSip, markRecentlyViewed, removePriceAlert, triggerPriceAlerts } from "@/lib/stock-plans";
-import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, sessionTick, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, takePersonalLoan, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, sessionTick, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import TradeFlow from "@/components/trade/TradeFlow";
 import { applyStockTrade, clockStepMinutes, enqueueOrder, isMarketOpen, MINUTES_PER_DAY, processQueuedOrders, processSips, updateWatchlist } from "@/lib/trading-automation";
@@ -56,12 +62,6 @@ function gameFromPortfolio(portfolio:Portfolio,stocks:Stock[]):GameState {
  return state;
 }
 const fmtCompact = (n:number) => n >= 1e12 ? `$${(n/1e12).toFixed(2)}T` : n >= 1e9 ? `$${(n/1e9).toFixed(1)}B` : n >= 1e6 ? `$${(n/1e6).toFixed(1)}M` : money(n);
-const newsItems: {source:string;time:string;ticker:string;tone:string;title:string;body:string;tickers?:string[]}[] = [
-  {source:"Trading Post",time:"7h 6m ago",ticker:"NVDA",tone:"up",title:"Nvidia expands its next-generation AI platform as demand accelerates",body:"The simulated company update points to stronger demand across data-centre customers. Chipmakers are leading today's sector rotation."},
-  {source:"Finance Daily",time:"Jan 6",ticker:"XOM",tone:"up",title:"Energy names rally as integrated producers raise shareholder returns",body:"A broad energy-sector move is lifting producers and service companies in the simulator's latest market session."},
-  {source:"Market Wire",time:"2h ago",ticker:"MRNA",tone:"down",title:"Moderna slips as investors reassess the near-term pipeline outlook",body:"The simulated outlook update weighs on healthcare sentiment. Volatility is elevated compared with the wider market."},
-  {source:"The Closing Bell",time:"Yesterday",ticker:"MSFT",tone:"up",title:"Cloud spending outlook supports large-cap technology shares",body:"Enterprise software and cloud infrastructure remain key themes for this week's simulated market."}
-];
 
 function BrandMark(){return <div className="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 24V17h4v7M14 24V10h4v14M23 24V5h4v19" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"/><path d="m4 13 8-5 7 2 8-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg></div>}
 export function BottomNav({active,onChange,badges={}}:{active:Tab;onChange:(tab:Tab)=>void;badges?:Partial<Record<Tab,boolean>>}) {
@@ -84,6 +84,7 @@ export default function InvStockApp(){
  const [financialsOpen,setFinancialsOpen]=useState(false);
  const [optionTicker,setOptionTicker]=useState("NVDA");
  const [optionDetailOpen,setOptionDetailOpen]=useState(false);
+ const [rewardSheet,setRewardSheet]=useState<"bonus"|"cash"|null>(null);
  const [modal,setModal]=useState<Modal>(null);
  const [newsIndex,setNewsIndex]=useState(0);
  const [search,setSearch]=useState("");
@@ -99,6 +100,7 @@ export default function InvStockApp(){
  const [accountInitialPanel,setAccountInitialPanel]=useState<"Bank"|"Settings">("Bank");
  const [accountEntry,setAccountEntry]=useState<{view:AccountView;nonce:number}>({view:"root",nonce:0});
  const [settingsOpen,setSettingsOpen]=useState(false);
+ const [overlay,setOverlay]=useState<"networth"|"loans"|null>(null);
  const liveQuotesRef=useRef<LiveQuoteMap|null>(null);
  const [liveStatus,setLiveStatus]=useState<string|undefined>(undefined);
  useEffect(()=>{
@@ -232,10 +234,22 @@ export default function InvStockApp(){
  const previousClose=game.dailyHistory.at(-1)?.v??game.start;
  const dailyChange=totalValue-previousClose;
  const dailyChangePct=dailyChange/Math.max(1,previousClose)*100;
- const chartData=useMemo(()=>{const intraday=timeframe==="1D"?game.history.slice(-390):timeframe==="1W"?game.history.slice(-1950):null;const daily=timeframe==="1M"?game.dailyHistory.slice(-30):timeframe==="3M"?game.dailyHistory.slice(-90):timeframe==="1Y"?game.dailyHistory.slice(-252):timeframe==="ALL"?game.dailyHistory:[];const points=intraday??daily;const source=points.length?points:[{v:totalValue,t:game.market.day}];return source.map(point=>({label:"Day "+point.t,value:point.v}));},[game.history,game.dailyHistory,game.market.day,timeframe,totalValue]);
+ const challengeSummary=useMemo<HomeChallenge>(()=>{const challenge=game.weeklyChallenge;const returnPct=(totalValue/Math.max(1,challenge.startValue)-1)*100;const rank=1+challenge.bots.filter(bot=>bot.returnPct>returnPct).length;return {joined:challenge.joined,rank,entrants:challenge.bots.length+1,returnPct};},[game.weeklyChallenge,totalValue]);
+ const chartData=useMemo(()=>{
+  // Intraday frames read the per-minute history; longer frames read daily closes and fall back to intraday until enough days exist.
+  const intraday=timeframe==="1D"?game.history.slice(-390):timeframe==="1W"?game.history.slice(-1950):null;
+  const days={"1M":21,"3M":63,"1Y":252}[timeframe as "1M"|"3M"|"1Y"];
+  const daily=timeframe==="ALL"?game.dailyHistory:days?game.dailyHistory.slice(-days):[];
+  const points=intraday??(daily.length>=2?daily.map(point=>({v:point.v,t:point.t*1000})):game.history.slice(-1950));
+  const series=points.map(point=>({label:"t"+point.t,value:point.v}));
+  series.push({label:"now",value:totalValue});
+  if(series.length<2)series.unshift({label:"start",value:game.start});
+  return series;
+ },[game.history,game.dailyHistory,game.start,timeframe,totalValue]);
  const stockByTicker=(ticker:string)=>stocks.find(s=>s.ticker===ticker)!;
  
- const activeNews=game.news.length?game.news.map(event=>({source:event.source?(event.source+" · "+event.status+" · "+Math.round((event.reliability??1)*100)+"% reliable"):(event.type==="aftermath"?"Rumour desk":"Market simulator"),time:"Day "+event.day+" · "+String(event.minute??0).padStart(3,"0"),ticker:event.tickers[0]??"SPY",tone:event.sentiment>=0?"up":"down",title:event.headline,body:event.body,tickers:event.tickers,status:event.status,category:event.category,severity:event.severity,reliability:event.reliability})):newsItems;
+ const newsAge=(event:{day:number;minute?:number})=>{if(event.day!==game.market.day)return shortGameDate(event.day);const minutes=Math.max(0,Math.round(game.market.minute-(event.minute??game.market.minute)));return minutes<1?"Just now":minutes<60?`${minutes}m ago`:`${Math.floor(minutes/60)}h ${minutes%60}m ago`;};
+ const activeNews=[...game.news].sort((a,b)=>(b.day-a.day)||((b.minute??0)-(a.minute??0))).map(event=>({id:event.id,source:event.source??(event.type==="aftermath"?"Rumour desk":["Trading Post","Finance Daily"][Math.abs(event.id)%2]),time:newsAge(event),ticker:event.tickers[0]??"SPY",tone:(event.sentiment>=0?"up":"down") as "up"|"down",title:event.headline,body:event.body,tickers:event.tickers,status:event.status,category:event.category,severity:event.severity,reliability:event.reliability}));
  const filteredNews=activeNews.filter(item=>newsFilter==="My stocks"?(saved.includes(item.ticker)||Boolean(portfolio.holdings[item.ticker])):newsFilter==="Market"?(item.tickers?.length??1)>1:true);
 const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:stocks.find(item=>item.ticker===ticker),holding})).filter((item):item is {stock:Stock;holding:GameState["holdings"][string]}=>Boolean(item.stock));
  const stockValue=positions.reduce((sum,item)=>sum+item.stock.price*item.holding.quantity,0);
@@ -243,6 +257,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const dividendTotal=game.activity.filter(item=>item.type==="dividend").reduce((sum,item)=>sum+(item.amount??0),0);
  const openStock=(stock:Stock)=>{setSelected(stock);setFinancialsOpen(false);setAmount("");const nextGame=markRecentlyViewed(gameRef.current,stock.ticker);gameRef.current=nextGame;setGame(nextGame);};
  const commitGame=(nextGame:GameState)=>{gameRef.current=nextGame;setGame(nextGame);};
+ const applyReward=(outcome:RewardResult,label:string)=>{if(!outcome.ok){setToast(outcome.reason);return;}commitGame(outcome.state);setToast(`${label}: +${formatMoney(outcome.amount,outcome.state.settings.currency)} added to buying power`);};
  const closeDetail=()=>setSelected(null);
  const startTrade=(side:"buy"|"sell")=>{setTradeSide(side);setUnit("Dollars");setAmount("");setModal("trade");};
  const commitStockTrade=(stock:Stock,side:"buy"|"sell",quantity:number):boolean=>{
@@ -294,14 +309,14 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
  const pageTitle=selected?selected.ticker:tab;
 
  return <main className="app-shell">
-  {(tab!=="Home"&&tab!=="Account"&&tab!=="Options"&&!selected)&&<header className="topbar"><button className="brand-lockup" aria-label="Go to STONKS home" onClick={()=>{setSelected(null);setTab("Home");}}><BrandMark/><span>STONKS</span></button><div className="topbar-actions"><button className="icon-button" aria-label="Search stocks" onClick={()=>{setSelected(null);setTab("Discovery");setSearch("");}}><Search size={19}/></button><button className="speed-chip" aria-label="Change simulation speed" onClick={cycleSpeed}><Zap size={14}/>{game.settings.speed===0?"Paused":game.settings.speed+"×"}</button><button className="icon-button" aria-label="Notifications" onClick={()=>{setNewsFilter("All");setNewsIndex(0);setModal("news");}}><Bell size={19}/></button><button className="icon-button" aria-label="Open account profile" onClick={()=>{setSelected(null);setTab("Account");}}><BriefcaseBusiness size={18}/></button></div></header>}
   {selected?(financialsOpen?<FinancialsScreen ticker={selected.ticker} name={selected.name} onBack={()=>setFinancialsOpen(false)}/>:<StockDetail key={selected.ticker} stock={stockByTicker(selected.ticker)??selected} state={game} stocks={stocks} currency={game.settings.currency} saved={game.watchlist.includes(selected.ticker)} liveData={game.settings.liveData} backLabel={tab} onBack={closeDetail} onToggleSaved={()=>toggleSaved(selected.ticker)} onTrade={startTrade}
    onCreateSip={(amount,frequency)=>{try{commitGame(createSip(gameRef.current,selected.ticker,amount,frequency));setToast(`${frequency[0].toUpperCase()+frequency.slice(1)} SIP of ${formatMoney(amount,game.settings.currency)} started for ${selected.ticker}`);}catch(error){setToast(error instanceof Error?error.message:"Could not start SIP");}}}
    onAddAlert={target=>{try{commitGame(addPriceAlert(gameRef.current,selected.ticker,target,stockByTicker(selected.ticker).price));setToast(`Alert set for ${selected.ticker} at ${formatMoney(target,game.settings.currency)}`);}catch(error){setToast(error instanceof Error?error.message:"Could not set alert");}}}
    onRemoveAlert={id=>commitGame(removePriceAlert(gameRef.current,id))} onSearch={()=>{setSelected(null);setTab("Discovery");}} onOpenStock={openStock} onOpenFinancials={()=>setFinancialsOpen(true)} onOpenOptions={()=>{setOptionTicker(selected.ticker);setSelected(null);setTab("Options");}}/>)
-  :<>{tab!=="Home"&&tab!=="Account"&&tab!=="Options"&&<div className="page-heading"><div>{tab!=="Discovery"&&<p className="eyebrow">PAPER TRADING · SIMULATED MARKET</p>}<h1>{tab==="Discovery"?"Discover":tab}</h1></div></div>}
+  :<>
   {tab==="Home"&&<HomeDashboard
     marketMinute={game.market.minute}
+    day={game.market.day}
     totalValue={totalValue}
     dailyChange={dailyChange}
     dailyChangePct={dailyChangePct}
@@ -310,20 +325,30 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     currency={game.settings.currency}
     buyingPower={game.cash}
     timeframe={timeframe}
+    speed={game.settings.speed}
     positions={positions.map(({stock,holding})=>({stock,quantity:holding.quantity,marketValue:stock.price*holding.quantity,returnPct:(stock.price/Math.max(0.01,holding.averageCost)-1)*100}))}
+    optionPositions={game.optionPositions.length}
+    watchlist={game.watchlist.map(ticker=>stocks.find(stock=>stock.ticker===ticker)).filter((stock):stock is Stock=>!!stock)}
+    movers={[...stocks].sort((a,b)=>Math.abs(b.change)-Math.abs(a.change)).slice(0,8)}
+    challenge={challengeSummary}
+    missionReady={game.missions.some(mission=>!mission.claimed&&mission.progress>=mission.target)}
+    bonusReady={dailyBonusStatus(game.rewards).claimable}
+    videosLeft={videosLeft(game.rewards)}
     onTimeframeChange={setTimeframe}
     onStockSelect={openStock}
-    onHistory={()=>setTab("Account")}
-    onAddCash={()=>openAccount("empire","Bank")}
+    onHistory={()=>openAccount("history")}
+    onAddCash={()=>setRewardSheet("cash")}
     onSettings={openSettings}
-    belowPositions={<>
-      <details className="home-extras"><summary><span>Challenges & missions</span><ChevronDown size={16}/></summary><div className="home-extras-content">
-        <div className="challenge-card"><div className="challenge-icon"><Trophy size={22}/></div><div className="challenge-copy"><b>Weekly trading challenge</b><p>{game.weeklyChallenge.joined?"You are competing against four trading bots. Your return: "+signed((totalValue/Math.max(1,game.weeklyChallenge.startValue)-1)*100)+".":"Join the weekly market challenge and compete against four simulated trading bots."}</p></div><button onClick={game.weeklyChallenge.joined?()=>setToast("Your leaderboard is shown below."):joinChallenge}>{game.weeklyChallenge.joined?"Joined":"Join challenge"} <ArrowRight size={16}/></button></div>
-        {game.weeklyChallenge.joined&&<div className="challenge-leaderboard"><div><b>You</b><strong className={totalValue>=game.weeklyChallenge.startValue?"gain":"loss"}>{signed((totalValue/Math.max(1,game.weeklyChallenge.startValue)-1)*100)}</strong></div>{game.weeklyChallenge.bots.map(bot=><div key={bot.name}><b>{bot.name}</b><strong className={bot.returnPct>=0?"gain":"loss"}>{signed(bot.returnPct)}</strong></div>)}{game.market.day>game.weeklyChallenge.week*7&&!game.weeklyChallenge.claimed&&<button onClick={claimChallengeReward}>Claim weekly reward</button>}</div>}
-        <div className="home-missions">{game.missions.map(mission=><div className="mission-row" key={mission.id}><span><Target size={17}/><span><b>{mission.title}</b><small>{mission.description} · {mission.progress}/{mission.target}</small></span></span><button disabled={mission.claimed||mission.progress<mission.target} onClick={()=>claimMissionReward(mission.id)}>{mission.claimed?"Claimed":mission.progress>=mission.target?"Claim "+money(mission.reward):"In progress"}</button></div>)}</div>
-      </div></details>
-      <SectionTitle title="Watchlist" action="Discover" onAction={()=>setTab("Discovery")}/><div className="surface stock-list">{game.watchlist.map(ticker=>{const stock=stockByTicker(ticker);return stock?<div className="watchlist-item" key={ticker}><StockListRow stock={stock} currency={game.settings.currency} onClick={()=>openStock(stock)}/><button aria-label={"Remove "+ticker+" from watchlist"} onClick={()=>toggleSaved(ticker)}><X size={15}/></button></div>:null;})}</div>
-    </>}
+    onSpeedChange={changeSpeed}
+    onDailyBonus={()=>setRewardSheet("bonus")}
+    onViewChallenge={()=>openAccount("challenge")}
+    onMissions={()=>openAccount("missions")}
+    onVideoBonus={()=>setRewardSheet("cash")}
+    onOptionPositions={()=>setTab("Options")}
+    onEditList={()=>openAccount("watchlists")}
+    onAddToList={()=>setTab("Discovery")}
+    onSeeAllMovers={()=>setTab("Discovery")}
+    onNetWorth={()=>setOverlay("networth")}
   />}
   {tab==="Discovery"&&<DiscoveryPage
     stocks={stocks}
@@ -341,7 +366,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
   {tab==="Options"&&<OptionsChain stock={stockByTicker(optionTicker)??stocks[0]} stocks={stocks} state={game} currency={game.settings.currency} liveData={game.settings.liveData} marketOpen={isMarketOpen(game)} onDetailChange={setOptionDetailOpen} onChangeTicker={setOptionTicker} onOpenStock={openStock}
    onBuy={order=>{const result=buyOption(gameRef.current,order);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Bought ${order.contracts} ${order.ticker} ${formatMoney(order.strike,game.settings.currency)} ${order.type} contract${order.contracts>1?"s":""} for ${formatMoney(result.amount,game.settings.currency)}`);return true;}}
    onSell={(id,contracts,price)=>{const result=sellOption(gameRef.current,id,contracts,price);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Sold ${contracts} contract${contracts>1?"s":""} for ${formatMoney(result.amount,game.settings.currency)}`);return true;}}/>}
-  {tab==="News"&&<section className="news-view"><div className="news-tabs">{["All","My stocks","Market"].map(v=><button key={v} className={newsFilter===v?"selected":""} onClick={()=>setNewsFilter(v)}>{v}</button>)}</div>{filteredNews.map((item,i)=><button className="news-card" key={item.title} onClick={()=>{setNewsIndex(i);setModal("news");}}><div className="news-source"><i className={item.tone==="up"?"up-dot":"down-dot"}/>{item.source}<span>· {item.time}</span></div><b>{item.title}</b><div className="news-bottom"><span>{item.ticker} · Simulated market news</span><CompanyLogo ticker={item.ticker} name={stockByTicker(item.ticker).name} size={32}/></div></button>)}</section>}
+  {tab==="News"&&<NewsScreen items={filteredNews.map(item=>({...item,name:stockByTicker(item.ticker)?.name??item.ticker}))} filter={newsFilter} onFilterChange={setNewsFilter} onOpen={index=>{setNewsIndex(index);setModal("news");}}/>}
   {tab==="Account"&&settingsOpen&&<SettingsScreen
     settings={game.settings}
     startingValue={startingValue}
@@ -349,7 +374,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onBack={()=>setSettingsOpen(false)}
     onSpeed={changeSpeed}
     onSetting={changeSetting}
-    onAddCash={()=>openAccount("empire","Bank")}
+    onAddCash={()=>setRewardSheet("cash")}
     onUnavailable={(feature)=>setToast(feature+" is not available in the simulator yet.")}
     onExport={exportSave}
     onImport={importSave}
@@ -367,8 +392,10 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onJoinChallenge={joinChallenge}
     onClaimChallenge={claimChallengeReward}
     onOpenSettings={openSettings}
-    onAddCash={()=>openAccount("empire","Bank")}
+    onAddCash={()=>setRewardSheet("cash")}
     onUnavailable={(feature)=>setToast(feature+" is not available in the simulator yet.")}
+    onOpenNetWorth={()=>setOverlay("networth")}
+    onOpenLoans={()=>setOverlay("loans")}
     empirePanels={<AccountGamePanels key={accountInitialPanel} initialPanel={accountInitialPanel} state={game} stocks={stocks} onBank={performBankAction} onBuilding={performBuildingAction} onCryptoTrade={performCryptoTrade} onBusinessBuy={performBusinessBuy} onBusinessHire={performBusinessHire} onBusinessFire={performBusinessFire} onBusinessPromote={performBusinessPromote} onBusinessUpgrade={performBusinessUpgrade} onBusinessStrategy={performBusinessStrategy} onBusinessRelocate={performBusinessRelocate} onBusinessSell={performBusinessSell} onPropertyBuy={performPropertyBuy} onPropertyUpgrade={performPropertyUpgrade} onPropertySell={performPropertySell} onComplianceReview={performComplianceReview} onComplianceHire={performComplianceHire} onInvestigationResolve={performInvestigationResolve} onLegacyUpgrade={performLegacyUpgrade} onRebirth={performRebirth} onSpeed={changeSpeed} onSetting={changeSetting} onImport={importSave} onExport={exportSave} onReset={resetGame}/>}
   />}
   </>}
@@ -383,11 +410,23 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     isMarketOpen={isMarketOpen(game)}
     chartHistory={selected.history.slice(-78)}
     tradeSide={tradeSide}
+    sharesAvailable={game.holdings[selected.ticker]?.quantity??0}
+    sessionProgress={isMarketOpen(game)?(game.market.minute-MARKET_OPEN_MINUTE)/MARKET_SESSION_MINUTES:1}
+    dayChangePct={stockByTicker(selected.ticker)?.change??selected.change}
     onBack={()=>setModal(null)}
     onExecuteTrade={({side,shares})=>commitStockTrade(selected,side,shares)}
     onQueueOrder={({side,shares,targetPrice})=>queueStockOrder(selected,side,shares,targetPrice)}
   /></div>}
   {modal==="news"&&<div className="modal-backdrop" onClick={()=>setModal(null)}><section className="news-modal" role="dialog" aria-modal="true" aria-labelledby="news-title" onClick={e=>e.stopPropagation()}><div className="modal-head"><span className="news-kicker"><i/> MARKET UPDATE</span><button onClick={()=>setModal(null)} aria-label="Close news"><X size={20}/></button></div><div className="news-modal-source">{filteredNews[newsIndex%filteredNews.length]?.source??"Market simulator"} · {filteredNews[newsIndex%filteredNews.length]?.time??"Latest"}</div><h2 id="news-title">{filteredNews[newsIndex%filteredNews.length]?.title??"No market update selected"}</h2><p>{filteredNews[newsIndex%filteredNews.length]?.body??"Open the news feed to select a market update."}</p><div className="news-modal-ticker"><span>AFFECTED TICKER</span><b>{filteredNews[newsIndex%filteredNews.length]?.ticker??"—"}</b></div><button className="news-open-button" onClick={()=>{setModal(null);setTab("News");}}>Open news feed <ArrowRight size={16}/></button></section></div>}
+  {rewardSheet==="bonus"&&<DailyBonusSheet status={dailyBonusStatus(game.rewards)} currency={game.settings.currency} onClose={()=>setRewardSheet(null)} onClaim={doubled=>{applyReward(claimDailyBonus(gameRef.current,doubled),"Daily bonus");setRewardSheet(null);}}/>}
+  {overlay&&<div key={overlay} className="fixed inset-0 z-[150] overflow-y-auto bg-black"><div className="mx-auto min-h-full max-w-[430px]">
+   {overlay==="networth"&&<NetWorthScreen state={game} stocks={stocks} currency={game.settings.currency} totalValue={totalValue} onBack={()=>setOverlay(null)} onLoans={()=>setOverlay("loans")}
+    onExplore={id=>{setOverlay(null);setSelected(null);if(id==="cash"){setRewardSheet("cash");return;}if(id==="property"){openAccount("empire");return;}if(id==="options"){setTab("Options");return;}setDiscoveryAsset(id==="crypto"?"Crypto":"Stocks");setSector("All");setTab("Discovery");}}/>}
+   {overlay==="loans"&&<LoansScreen state={game} stocks={stocks} currency={game.settings.currency} onBack={()=>setOverlay(null)}
+    onTakeLoan={(amount,days)=>{const result=takePersonalLoan(structuredClone(gameRef.current),stocksRef.current,amount,days);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Loan of ${formatMoney(amount,game.settings.currency)} added to buying power`);setOverlay(null);return true;}}
+    onRepay={amount=>{const result=bankAction(structuredClone(gameRef.current),stocksRef.current,"repay",amount);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Repaid ${formatMoney(amount,game.settings.currency)}`);return true;}}/>}
+  </div></div>}
+  {rewardSheet==="cash"&&<AddCashSheet buyingPower={game.cash} videosLeft={videosLeft(game.rewards)} currency={game.settings.currency} onClose={()=>setRewardSheet(null)} onAdd={amount=>{applyReward(addVirtualCash(gameRef.current,amount),"Virtual cash");setRewardSheet(null);}} onVideo={()=>applyReward(claimVideoBonus(gameRef.current),"Video bonus")}/>}
   {toast&&<div className="toast" role="status">{toast}<button onClick={()=>setToast("")}><X size={14}/></button></div>}
  </main>;
 }

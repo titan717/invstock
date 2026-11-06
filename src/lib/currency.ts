@@ -28,13 +28,14 @@ export function convertToUsd(amount: number, currency: CurrencyCode): number {
   return amount / SIMULATOR_FX_RATES[currency];
 }
 
-export function formatMoney(amountUsd: number, currency: CurrencyCode = "USD"): string {
+export function formatMoney(amountUsd: number, currency: CurrencyCode = "USD", digits?: { minimumFractionDigits?: number; maximumFractionDigits?: number }): string {
   const metadata = CURRENCIES.find(item => item.code === currency) ?? CURRENCIES[0];
+  const maximumFractionDigits = digits?.maximumFractionDigits ?? 2;
   return new Intl.NumberFormat(metadata.locale, {
     style: "currency",
     currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: Math.min(digits?.minimumFractionDigits ?? maximumFractionDigits, maximumFractionDigits),
+    maximumFractionDigits,
   }).format(convertFromUsd(amountUsd, currency));
 }
 

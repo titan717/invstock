@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Clock3, Crown, DollarSign, Droplet, FileText, Landmark, List, Plus, Settings, Star, Target, Trophy } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Clock3, Crown, DollarSign, Droplet, FileText, HandCoins, Landmark, List, PieChart, Plus, Settings, Star, Target, Trophy, User, Bot } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import type { Stock } from "@/lib/market";
 import { ACHIEVEMENTS, type GameActivity, type GameState } from "@/lib/game-engine";
 import { formatMoney, type CurrencyCode } from "@/lib/currency";
+import { clockLabel, shortGameDate, tradingDayDate } from "@/lib/game-calendar";
 
 /** Mirrors the thresholds in game-runtime.updateProgression. */
 export const RANK_THRESHOLDS: { name: string; xp: number }[] = [
@@ -23,34 +24,61 @@ export function rankProgress(xp: number): { rank: string; next: string | null; n
 }
 
 export const SIM_MONTH_DAYS = 30;
-export type MonthlyStatement = { month: number; startDay: number; endDay: number; inProgress: boolean; startingValue: number; endingValue: number; returnPct: number; deposits: number; dividends: number; trades: number };
+export type MonthlyStatement = { month: number; label: string; startDay: number; endDay: number; inProgress: boolean; startingValue: number; endingValue: number; returnPct: number; deposits: number; dividends: number; trades: number };
 
 const TRADE_TYPES = new Set(["buy", "sell", "queued-buy", "queued-sell", "sip-buy"]);
 
+const BOT_DETAILS: Record<string, string> = {
+  "Index Bot": "Buys the broad market ETF and holds",
+  "Momentum Bot": "Buys last month's strongest stocks",
+  "Value Bot": "Buys the cheapest stocks by P/E",
+  "Options Bot": "Puts a slice of cash into index calls",
+};
+const BOT_FALLBACK = Object.values(BOT_DETAILS);
+/** ISO week label such as 2026-W02 for a trading day. */
+export function isoWeekLabel(day: number): string {
+  const date = tradingDayDate(day);
+  const thursday = new Date(date.getTime() + (3 - ((date.getUTCDay() + 6) % 7)) * 86_400_000);
+  const yearStart = Date.UTC(thursday.getUTCFullYear(), 0, 1);
+  const week = Math.ceil(((thursday.getTime() - yearStart) / 86_400_000 + 1) / 7);
+  return `${thursday.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
+}
+const CREDIT_TYPES = new Set(["login-bonus", "video-bonus", "virtual-cash"]);
+const monthKey = (day: number) => { const date = tradingDayDate(day); return date.getUTCFullYear() * 12 + date.getUTCMonth(); };
+
+/** Calendar-month statements on the game calendar. Bonus and virtual cash count as deposits, not returns. */
 export function buildMonthlyStatements(state: GameState, totalValue: number): MonthlyStatement[] {
-  const currentDay = state.market.day;
-  const months = Math.max(1, Math.ceil(currentDay / SIM_MONTH_DAYS));
+  const currentDay = Math.max(1, state.market.day);
   const valueAtOrBefore = (day: number, fallback: number) => {
     let value = fallback;
     for (const point of state.dailyHistory) if (point.t <= day) value = point.v;
     return value;
   };
-  const statements: MonthlyStatement[] = [];
-  for (let month = 1; month <= months; month++) {
-    const startDay = (month - 1) * SIM_MONTH_DAYS + 1;
-    const endDay = month * SIM_MONTH_DAYS;
+  const credits = state.activity.filter(item => CREDIT_TYPES.has(item.type));
+  const initialCapital = state.start - credits.reduce((sum, item) => sum + (item.amount ?? 0), 0);
+  const ranges: { key: number; startDay: number; endDay: number }[] = [];
+  for (let day = 1; day <= currentDay; day++) {
+    const key = monthKey(day);
+    if (ranges.at(-1)?.key === key) ranges.at(-1)!.endDay = day; else ranges.push({ key, startDay: day, endDay: day });
+  }
+  const last = ranges.at(-1)!;
+  while (monthKey(last.endDay + 1) === last.key) last.endDay++;
+  const statements = ranges.map(({ startDay, endDay }, index): MonthlyStatement => {
     const inProgress = currentDay <= endDay;
-    const startingValue = month === 1 ? state.start : valueAtOrBefore(startDay - 1, state.start);
+    const startingValue = index === 0 ? initialCapital : valueAtOrBefore(startDay - 1, initialCapital);
     const endingValue = inProgress ? totalValue : valueAtOrBefore(endDay, startingValue);
     const inMonth = (item: GameActivity) => item.day >= startDay && item.day <= endDay;
-    statements.push({
-      month, startDay, endDay, inProgress, startingValue, endingValue,
-      returnPct: startingValue > 0 ? (endingValue / startingValue - 1) * 100 : 0,
-      deposits: month === 1 ? state.start : 0,
+    const deposits = credits.filter(inMonth).reduce((sum, item) => sum + (item.amount ?? 0), 0);
+    const base = startingValue + deposits;
+    return {
+      month: index + 1,
+      label: tradingDayDate(startDay).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" }),
+      startDay, endDay, inProgress, startingValue, endingValue, deposits,
+      returnPct: base > 0 ? ((endingValue - base) / base) * 100 : 0,
       dividends: state.activity.filter(item => item.type === "dividend" && inMonth(item)).reduce((sum, item) => sum + (item.amount ?? 0), 0),
-      trades: state.activity.filter(item => TRADE_TYPES.has(item.type) && inMonth(item)).length,
-    });
-  }
+      trades: state.activity.filter(item => (TRADE_TYPES.has(item.type) || item.type.startsWith("option-buy") || item.type.startsWith("option-sell")) && inMonth(item)).length,
+    };
+  });
   return statements.reverse();
 }
 
@@ -70,6 +98,8 @@ export type AccountScreenProps = {
   onOpenSettings: () => void;
   onAddCash: () => void;
   onUnavailable: (feature: string) => void;
+  onOpenNetWorth?: () => void;
+  onOpenLoans?: () => void;
   /** Bank, crypto, businesses, real estate, compliance and rebirth panels. */
   empirePanels: ReactNode;
 };
@@ -125,7 +155,18 @@ const describeActivity = (item: GameActivity, currency: CurrencyCode): { title: 
       return { title: item.ticker ?? "Stock", detail: `${item.type === "queued-sell" ? "Queued sell" : "Sell"} • ${shares}`, amount: item.amount ?? gross - (item.fee ?? 0) };
     case "dividend":
       return { title: item.ticker ?? "Dividend", detail: "Dividend", amount: item.amount ?? 0 };
+    case "login-bonus": return { title: "Daily login bonus", detail: "Deposit", amount: item.amount ?? 0 };
+    case "video-bonus": return { title: "Video bonus", detail: "Deposit", amount: item.amount ?? 0 };
+    case "virtual-cash": return { title: "Virtual cash", detail: "Deposit", amount: item.amount ?? 0 };
+    case "loan": return { title: "Personal loan", detail: "Loan disbursed", amount: item.amount ?? 0 };
+    case "repayment": return { title: "Loan repayment", detail: "Loan", amount: -(item.amount ?? 0) };
     default:
+      if (item.type.startsWith("option-buy-") || item.type.startsWith("option-sell-")) {
+        const buying = item.type.startsWith("option-buy-");
+        const kind = item.type.endsWith("call") ? "call" : "put";
+        return { title: item.ticker ?? "Option", detail: `${buying ? "Bought" : "Sold"} ${kind} • ${item.qty ?? 0} contract${item.qty === 1 ? "" : "s"} at ${formatMoney(item.price ?? 0, currency)}`, amount: buying ? -(item.amount ?? 0) : item.amount ?? 0 };
+      }
+      if (item.type === "option-exercised" || item.type === "option-expired") return { title: item.ticker ?? "Option", detail: item.type === "option-exercised" ? "Exercised at expiry" : "Expired worthless", amount: item.amount ?? 0 };
       return { title: item.type.replace(/-/g, " ").replace(/^./, c => c.toUpperCase()), detail: item.ticker ?? "Account", amount: item.amount ?? null };
   }
 };
@@ -143,7 +184,7 @@ function ActivityList({ items, currency }: { items: GameActivity[]; currency: Cu
             <span className="min-w-0 flex-1">
               <b className="block text-[15px] text-white">{view.title}</b>
               <small className="block truncate text-[13px] text-[#8E8E93] tabular-nums">{view.detail}</small>
-              <small className="block text-[12px] text-[#8E8E93]">Day {item.day}</small>
+              <small className="block text-[12px] text-[#8E8E93]">{shortGameDate(item.day)}</small>
             </span>
             {view.amount !== null && <span className={`text-[15px] font-semibold tabular-nums ${outgoing ? "text-white" : "text-[#00D09C]"}`}>{signedMoney(view.amount, currency)}</span>}
           </li>
@@ -153,10 +194,10 @@ function ActivityList({ items, currency }: { items: GameActivity[]; currency: Cu
   );
 }
 
-export function AccountScreen({ state, stocks, totalValue, currency, initialView = "root", benchmarkTicker = "SPY", onOpenStock, onClaimMission, onJoinChallenge, onClaimChallenge, onOpenSettings, onAddCash, onUnavailable, empirePanels }: AccountScreenProps) {
+export function AccountScreen({ state, stocks, totalValue, currency, initialView = "root", benchmarkTicker = "SPY", onOpenStock, onClaimMission, onJoinChallenge, onClaimChallenge, onOpenSettings, onAddCash, onUnavailable, onOpenNetWorth, onOpenLoans, empirePanels }: AccountScreenProps) {
   const [view, setView] = useState<AccountView>(initialView);
   const [range, setRange] = useState<"1M" | "3M" | "1Y" | "ALL">("ALL");
-  const [historyFilter, setHistoryFilter] = useState<"All" | "Stocks" | "Dividends">("All");
+  const [historyFilter, setHistoryFilter] = useState<"All" | "Stocks" | "Options" | "Dividends">("All");
   const money = (value: number) => formatMoney(value, currency);
   const back = () => setView("root");
 
@@ -212,32 +253,52 @@ export function AccountScreen({ state, stocks, totalValue, currency, initialView
             );
           })}</ul>
         </>)}
-        {view === "challenge" && (<>
-          <SubHeader title="Weekly challenge" onBack={back} />
-          <div className="rounded-2xl bg-[#1C1C1E] p-4">
-            <small className="text-[12px] text-[#8E8E93]">Week {state.weeklyChallenge.week}</small>
-            <p className="mt-1 text-[16px] font-bold text-white">Beat the bots this week.</p>
-            <p className="mt-1 text-[14px] text-[#8E8E93]">Your return is measured from your net worth when you join.</p>
-            <div className="mt-3 flex justify-between text-[15px]"><span className="text-white">Your return</span><b className={`tabular-nums ${tone(totalValue - state.weeklyChallenge.startValue)}`}>{state.weeklyChallenge.joined ? signedPct((totalValue / Math.max(1, state.weeklyChallenge.startValue) - 1) * 100) : "—"}</b></div>
-            {!state.weeklyChallenge.joined && <button type="button" onClick={onJoinChallenge} className="mt-4 w-full rounded-full bg-[#00D09C] py-3 text-[15px] font-semibold text-black">Join challenge</button>}
-            {state.weeklyChallenge.joined && state.market.day > state.weeklyChallenge.week * 7 && !state.weeklyChallenge.claimed && <button type="button" onClick={onClaimChallenge} className="mt-4 w-full rounded-full bg-[#00D09C] py-3 text-[15px] font-semibold text-black">Claim weekly reward</button>}
-          </div>
-          <SectionHeading>Leaderboard</SectionHeading>
-          <ol>{[{ name: "You", returnPct: state.weeklyChallenge.joined ? (totalValue / Math.max(1, state.weeklyChallenge.startValue) - 1) * 100 : 0, you: true }, ...state.weeklyChallenge.bots.map(bot => ({ name: bot.name, returnPct: bot.returnPct, you: false }))]
-            .sort((a, b) => b.returnPct - a.returnPct)
-            .map((entry, index) => (
-              <li key={entry.name} className={`flex items-center gap-3 border-b border-[#2C2C2E] px-2 py-3 ${entry.you ? "bg-[#0A3D33]/40" : ""}`}>
-                <b className="w-5 text-[15px] text-white tabular-nums">{index + 1}</b>
-                <span className="flex-1 text-[15px] font-semibold text-white">{entry.name}</span>
-                <b className={`text-[15px] tabular-nums ${tone(entry.returnPct)}`}>{signedPct(entry.returnPct)}</b>
+        {view === "challenge" && (() => {
+          const challenge = state.weeklyChallenge;
+          const startDay = (challenge.week - 1) * 7 + 1, endDay = challenge.week * 7;
+          const yourReturn = challenge.joined ? (totalValue / Math.max(1, challenge.startValue) - 1) * 100 : null;
+          const minutesLeft = Math.max(0, (endDay - state.market.day) * 390 + Math.max(0, 960 - state.market.minute));
+          const ended = state.market.day > endDay;
+          const board = [{ name: "You", detail: challenge.joined ? "Your account" : "Not joined yet", returnPct: yourReturn, you: true }, ...challenge.bots.map((bot, index) => ({ name: bot.name, detail: BOT_DETAILS[bot.name] ?? BOT_FALLBACK[index % BOT_FALLBACK.length], returnPct: bot.returnPct as number | null, you: false }))]
+            .sort((x, y) => (y.returnPct ?? -Infinity) - (x.returnPct ?? -Infinity));
+          return (<>
+            <SubHeader title="Weekly challenge" onBack={back} />
+            <div className="rounded-2xl bg-[#1C1C1E] p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[#3A2E10] text-[#F5C542]"><Trophy size={20} /></span>
+                <span><small className="text-[11px] text-[#8E8E93]">Week {isoWeekLabel(startDay)}</small><b className="block text-[15px] leading-5 text-white">Same market. Same cash. Who trades best?</b></span>
+              </div>
+              <p className="mt-2 text-[13px] leading-5 text-[#C7C7CC]">Everyone starts from the same market this week. Your return is measured from your net worth when you join. Beat the bots to win {money(challenge.reward)}.</p>
+              {challenge.joined && <div className="mt-3 flex justify-between text-[15px]"><span className="text-white">Your return</span><b className={`tabular-nums ${tone(yourReturn ?? 0)}`}>{signedPct(yourReturn ?? 0)}</b></div>}
+              {challenge.joined && <p className="mt-1 text-[12px] text-[#8E8E93] tabular-nums">Day {Math.min(7, Math.max(1, state.market.day - startDay + 1))} of 7 · {shortGameDate(state.market.day)} · {clockLabel(state.market.minute)}</p>}
+              {!challenge.joined && <button type="button" onClick={onJoinChallenge} className="mt-4 w-full rounded-xl bg-[#00D09C] py-3 text-[15px] font-bold text-black">Join challenge</button>}
+              {challenge.joined && ended && !challenge.claimed && <button type="button" onClick={onClaimChallenge} className="mt-4 w-full rounded-xl bg-[#00D09C] py-3 text-[15px] font-bold text-black">Claim reward</button>}
+              <p className="mt-2 text-center text-[12px] text-[#8E8E93] tabular-nums">{ended ? "Challenge ended" : `Ends in ${Math.floor(minutesLeft / 390)}d ${Math.floor((minutesLeft % 390) / 60)}h`}</p>
+            </div>
+            <SectionHeading>Leaderboard</SectionHeading>
+            <ol>{board.map((entry, index) => (
+              <li key={entry.name} className={`flex items-center gap-3 rounded-lg px-2 py-2.5 ${entry.you ? "bg-[#0A3D33]/40" : ""}`}>
+                <b className={`w-5 text-[15px] tabular-nums ${index < 3 ? "text-[#F5C542]" : "text-white"}`}>{index + 1}</b>
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#2C2C2E] text-[#00D09C]">{entry.you ? <User size={16} /> : <Bot size={16} />}</span>
+                <span className="min-w-0 flex-1"><b className="block text-[14px] text-white">{entry.name}</b><small className="block truncate text-[12px] text-[#8E8E93]">{entry.detail}</small></span>
+                <b className={`text-[14px] tabular-nums ${entry.returnPct === null ? "text-[#8E8E93]" : tone(entry.returnPct)}`}>{entry.returnPct === null ? "—" : signedPct(entry.returnPct)}</b>
               </li>
             ))}</ol>
-        </>)}
+            <SectionHeading>Rules</SectionHeading>
+            <ul className="space-y-2 text-[13px] leading-5 text-[#C7C7CC]">
+              {["Every player gets the same market, generated from this week's seed.", "Your return is measured from your net worth when you join.", "Four trading bots compete with their own strategies.", "Finish in first place when the week ends to claim the reward."].map(rule => (
+                <li key={rule} className="flex gap-2"><i className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#00D09C]" />{rule}</li>
+              ))}
+            </ul>
+            <SectionHeading>Your results</SectionHeading>
+            <p className="text-[13px] text-[#8E8E93]">{challenge.claimed ? `You claimed ${money(challenge.reward)} for week ${challenge.week}.` : ended && challenge.joined ? "This week's challenge has ended. Claim your result above." : "Finish a challenge to see your results here."}</p>
+          </>);
+        })()}
         {view === "history" && (<>
           <SubHeader title="History" onBack={back} />
-          <Segmented options={["All", "Stocks", "Dividends"] as const} value={historyFilter} onChange={setHistoryFilter} />
+          <Segmented options={["All", "Stocks", "Options", "Dividends"] as const} value={historyFilter} onChange={setHistoryFilter} />
           {(() => {
-            const items = state.activity.filter(item => historyFilter === "All" || (historyFilter === "Stocks" ? TRADE_TYPES.has(item.type) : item.type === "dividend"));
+            const items = state.activity.filter(item => historyFilter === "All" || (historyFilter === "Stocks" ? TRADE_TYPES.has(item.type) : historyFilter === "Options" ? item.type.startsWith("option-") : item.type === "dividend"));
             return (<><p className="mt-4 text-[14px] text-white tabular-nums">Transactions: {items.length}</p><ActivityList items={items} currency={currency} /></>);
           })()}
         </>)}
@@ -254,10 +315,10 @@ export function AccountScreen({ state, stocks, totalValue, currency, initialView
         </>)}
         {view === "statements" && (<>
           <SubHeader title="Monthly statements" onBack={back} />
-          <p className="mb-2 text-[13px] text-[#8E8E93]">Statements close at the end of each simulated month ({SIM_MONTH_DAYS} days).</p>
+          <p className="mb-2 text-[13px] text-[#8E8E93]">Statements close at the end of each simulated month.</p>
           {buildMonthlyStatements(state, totalValue).map(statement => (
             <div key={statement.month} className="mb-3 rounded-2xl bg-[#1C1C1E] px-4 py-3">
-              <div className="mb-1 flex items-center justify-between"><b className="text-[16px] text-white">Month {statement.month}</b><span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${statement.inProgress ? "bg-[#3A2E10] text-[#F5C542]" : "bg-[#2C2C2E] text-[#8E8E93]"}`}>{statement.inProgress ? "In progress" : "Closed"}</span></div>
+              <div className="mb-1 flex items-center justify-between"><b className="text-[16px] text-white">{statement.label}</b><span className={`rounded-full px-2 py-0.5 text-[12px] font-semibold ${statement.inProgress ? "bg-[#3A2E10] text-[#F5C542]" : "bg-[#2C2C2E] text-[#8E8E93]"}`}>{statement.inProgress ? "In progress" : "Closed"}</span></div>
               {([["Return", signedPct(statement.returnPct), tone(statement.returnPct)], ["Starting value", money(statement.startingValue), ""], ["Ending value", money(statement.endingValue), ""], ["Deposits", money(statement.deposits), ""], ["Dividends", money(statement.dividends), ""], ["Trades", String(statement.trades), ""]] as const).map(([label, value, cls]) => (
                 <div key={label} className="flex justify-between border-b border-[#2C2C2E] py-2 text-[15px] last:border-0"><span className="text-white">{label}</span><b className={`tabular-nums ${cls || "text-white"}`}>{value}</b></div>
               ))}
@@ -365,6 +426,8 @@ export function AccountScreen({ state, stocks, totalValue, currency, initialView
       <SectionHeading>More</SectionHeading>
       <Row icon={<Crown size={18} />} label="Market Sim Pro" onClick={() => onUnavailable("Market Sim Pro")} />
       <Row icon={<Plus size={18} />} label="Add virtual cash" onClick={onAddCash} />
+      {onOpenNetWorth && <Row icon={<PieChart size={18} />} label="Net worth" onClick={onOpenNetWorth} />}
+      {onOpenLoans && <Row icon={<HandCoins size={18} />} label="Loans" value={state.loan > 0 ? formatMoney(state.loan, currency) : undefined} onClick={onOpenLoans} />}
       <Row icon={<Landmark size={18} />} label="Bank & empire" onClick={() => setView("empire")} />
       <Row icon={<Settings size={18} />} label="Settings" onClick={onOpenSettings} />
 
