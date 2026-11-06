@@ -59,6 +59,7 @@ describe("InvStock save restoration", () => {
     await screen.findAllByRole("button", { name: "Discover" });
 
     fireEvent.click(screen.getAllByRole("button", { name: "Discover" }).find(button => button.classList.contains("nav-item"))!);
+    fireEvent.click(await screen.findByRole("button", { name: "All symbols" }));
     const aaplRow = await screen.findByText("AAPL");
     fireEvent.click(aaplRow.closest("button")!);
     fireEvent.click(screen.getByRole("button", { name: "Save stock" }));

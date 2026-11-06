@@ -797,13 +797,8 @@ select:focus-visible {
   font-size: 11px;
   font-weight: 750;
 }
-.discovery-stock-list {
-  overflow: hidden;
-  border: 1px solid rgba(142, 142, 147, .12);
-  border-radius: var(--radius-card);
-  background: var(--surface);
-}
-.discovery-stock-list .stock-list-row { min-height: 68px; }
+.discovery-stock-list { background: transparent; }
+.discovery-stock-list .stock-list-row { min-height: 60px; padding-left: 0; padding-right: 0; border-bottom: 0; background: transparent; }
 .discovery-search-results { margin-top: 5px; }
 .discovery-empty-state {
   margin: 0;
