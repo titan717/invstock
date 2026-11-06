@@ -12,6 +12,8 @@ import { SettingsScreen, speedLabel, type SettingKey, type SettingValue } from "
 import { startAmbientMusic, stopAmbientMusic } from "@/lib/ambient-music";
 import { applyLiveQuotes, type LiveQuoteMap } from "@/lib/live-quotes";
 import { shortGameDate } from "@/lib/game-calendar";
+import { NetWorthScreen } from "@/components/networth/NetWorthScreen";
+import { LoansScreen } from "@/components/loans/LoansScreen";
 import { NewsScreen } from "@/components/news/NewsScreen";
 import { DiscoveryPage } from "@/components/discovery/DiscoveryPage";
 import { StockListRow } from "@/components/discovery/StockListRow";
@@ -23,7 +25,7 @@ import { buyOption, sellOption, settleExpiredOptions } from "@/lib/options-tradi
 import { StockDetail } from "@/components/stock/StockDetail";
 import { FinancialsScreen } from "@/components/stock/FinancialsScreen";
 import { addPriceAlert, createSip, markRecentlyViewed, removePriceAlert, triggerPriceAlerts } from "@/lib/stock-plans";
-import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, sessionTick, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
+import { advanceGameDay, advanceBusinessEconomy, applyOfflineBusinessEarnings, bankAction, takePersonalLoan, buildingAction, calculateNetWorth, createGameState, cryptoTradeAction, fireBusinessEmployeeAction, hireBusinessEmployeeAction, promoteBusinessEmployeeAction, hydrateGameState, migrateLegacySave, purchaseBusinessAction, purchasePropertyAction, relocateBusinessAction, sellBusinessAction, sellRealEstateAction, setBusinessStrategyAction, upgradeBusinessAction, upgradeRealEstateAction, reviewFinancialScrutinyAction, hireComplianceOfficerAction, resolveFinancialInvestigationAction, purchaseLegacyUpgradeAction, rebirthGameAction, restoreMarketSnapshot, sessionTick, MARKET_OPEN_MINUTE, MARKET_SESSION_MINUTES, DIFFICULTY_RULES, type GameState } from "@/lib/game-engine";
 import { applyMarketEvent, claimMission, claimWeeklyChallenge, createMarketEvent, evaluateAchievements, joinWeeklyChallenge, resolvePendingRumours, updateProgression } from "@/lib/game-runtime";
 import TradeFlow from "@/components/trade/TradeFlow";
 import { applyStockTrade, clockStepMinutes, enqueueOrder, isMarketOpen, MINUTES_PER_DAY, processQueuedOrders, processSips, updateWatchlist } from "@/lib/trading-automation";
@@ -98,6 +100,7 @@ export default function InvStockApp(){
  const [accountInitialPanel,setAccountInitialPanel]=useState<"Bank"|"Settings">("Bank");
  const [accountEntry,setAccountEntry]=useState<{view:AccountView;nonce:number}>({view:"root",nonce:0});
  const [settingsOpen,setSettingsOpen]=useState(false);
+ const [overlay,setOverlay]=useState<"networth"|"loans"|null>(null);
  const liveQuotesRef=useRef<LiveQuoteMap|null>(null);
  const [liveStatus,setLiveStatus]=useState<string|undefined>(undefined);
  useEffect(()=>{
@@ -345,7 +348,7 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onEditList={()=>openAccount("watchlists")}
     onAddToList={()=>setTab("Discovery")}
     onSeeAllMovers={()=>setTab("Discovery")}
-    onNetWorth={()=>openAccount("root")}
+    onNetWorth={()=>setOverlay("networth")}
   />}
   {tab==="Discovery"&&<DiscoveryPage
     stocks={stocks}
@@ -391,6 +394,8 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
     onOpenSettings={openSettings}
     onAddCash={()=>setRewardSheet("cash")}
     onUnavailable={(feature)=>setToast(feature+" is not available in the simulator yet.")}
+    onOpenNetWorth={()=>setOverlay("networth")}
+    onOpenLoans={()=>setOverlay("loans")}
     empirePanels={<AccountGamePanels key={accountInitialPanel} initialPanel={accountInitialPanel} state={game} stocks={stocks} onBank={performBankAction} onBuilding={performBuildingAction} onCryptoTrade={performCryptoTrade} onBusinessBuy={performBusinessBuy} onBusinessHire={performBusinessHire} onBusinessFire={performBusinessFire} onBusinessPromote={performBusinessPromote} onBusinessUpgrade={performBusinessUpgrade} onBusinessStrategy={performBusinessStrategy} onBusinessRelocate={performBusinessRelocate} onBusinessSell={performBusinessSell} onPropertyBuy={performPropertyBuy} onPropertyUpgrade={performPropertyUpgrade} onPropertySell={performPropertySell} onComplianceReview={performComplianceReview} onComplianceHire={performComplianceHire} onInvestigationResolve={performInvestigationResolve} onLegacyUpgrade={performLegacyUpgrade} onRebirth={performRebirth} onSpeed={changeSpeed} onSetting={changeSetting} onImport={importSave} onExport={exportSave} onReset={resetGame}/>}
   />}
   </>}
@@ -411,6 +416,13 @@ const positions=Object.entries(game.holdings).map(([ticker,holding])=>({stock:st
   /></div>}
   {modal==="news"&&<div className="modal-backdrop" onClick={()=>setModal(null)}><section className="news-modal" role="dialog" aria-modal="true" aria-labelledby="news-title" onClick={e=>e.stopPropagation()}><div className="modal-head"><span className="news-kicker"><i/> MARKET UPDATE</span><button onClick={()=>setModal(null)} aria-label="Close news"><X size={20}/></button></div><div className="news-modal-source">{filteredNews[newsIndex%filteredNews.length]?.source??"Market simulator"} · {filteredNews[newsIndex%filteredNews.length]?.time??"Latest"}</div><h2 id="news-title">{filteredNews[newsIndex%filteredNews.length]?.title??"No market update selected"}</h2><p>{filteredNews[newsIndex%filteredNews.length]?.body??"Open the news feed to select a market update."}</p><div className="news-modal-ticker"><span>AFFECTED TICKER</span><b>{filteredNews[newsIndex%filteredNews.length]?.ticker??"—"}</b></div><button className="news-open-button" onClick={()=>{setModal(null);setTab("News");}}>Open news feed <ArrowRight size={16}/></button></section></div>}
   {rewardSheet==="bonus"&&<DailyBonusSheet status={dailyBonusStatus(game.rewards)} currency={game.settings.currency} onClose={()=>setRewardSheet(null)} onClaim={doubled=>{applyReward(claimDailyBonus(gameRef.current,doubled),"Daily bonus");setRewardSheet(null);}}/>}
+  {overlay&&<div key={overlay} className="fixed inset-0 z-[150] overflow-y-auto bg-black"><div className="mx-auto min-h-full max-w-[430px]">
+   {overlay==="networth"&&<NetWorthScreen state={game} stocks={stocks} currency={game.settings.currency} totalValue={totalValue} onBack={()=>setOverlay(null)} onLoans={()=>setOverlay("loans")}
+    onExplore={id=>{setOverlay(null);setSelected(null);if(id==="cash"){setRewardSheet("cash");return;}if(id==="property"){openAccount("empire");return;}if(id==="options"){setTab("Options");return;}setDiscoveryAsset(id==="crypto"?"Crypto":"Stocks");setSector("All");setTab("Discovery");}}/>}
+   {overlay==="loans"&&<LoansScreen state={game} stocks={stocks} currency={game.settings.currency} onBack={()=>setOverlay(null)}
+    onTakeLoan={(amount,days)=>{const result=takePersonalLoan(structuredClone(gameRef.current),stocksRef.current,amount,days);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Loan of ${formatMoney(amount,game.settings.currency)} added to buying power`);setOverlay(null);return true;}}
+    onRepay={amount=>{const result=bankAction(structuredClone(gameRef.current),stocksRef.current,"repay",amount);if(!result.ok){setToast(result.reason);return false;}commitGame(result.state);setToast(`Repaid ${formatMoney(amount,game.settings.currency)}`);return true;}}/>}
+  </div></div>}
   {rewardSheet==="cash"&&<AddCashSheet buyingPower={game.cash} videosLeft={videosLeft(game.rewards)} currency={game.settings.currency} onClose={()=>setRewardSheet(null)} onAdd={amount=>{applyReward(addVirtualCash(gameRef.current,amount),"Virtual cash");setRewardSheet(null);}} onVideo={()=>applyReward(claimVideoBonus(gameRef.current),"Video bonus")}/>}
   {toast&&<div className="toast" role="status">{toast}<button onClick={()=>setToast("")}><X size={14}/></button></div>}
  </main>;

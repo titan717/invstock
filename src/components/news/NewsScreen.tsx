@@ -9,7 +9,7 @@ const FILTERS: NewsFilter[] = ["All", "My stocks", "Market"];
 
 export function NewsScreen({ items, filter, onFilterChange, onOpen }: { items: NewsRow[]; filter: string; onFilterChange: (filter: NewsFilter) => void; onOpen: (index: number) => void }) {
   return (
-    <section className="news-screen min-h-full bg-black pb-24" aria-label="News">
+    <section className="news-screen -mx-4 -mt-4 min-h-full bg-black pb-24" aria-label="News">
       <h1 className="px-4 pt-6 text-[26px] font-bold text-white">News</h1>
       <div className="mx-4 mt-3 grid grid-cols-3 gap-1" role="tablist" aria-label="Filter news">
         {FILTERS.map(value => (

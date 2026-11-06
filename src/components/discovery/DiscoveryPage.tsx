@@ -82,7 +82,7 @@ export function DiscoveryPage({
 
   if (asset === "Crypto") {
     return (
-      <section className="min-h-full bg-black pb-24" aria-label="Crypto">
+      <section className="-mx-4 -mt-4 min-h-full bg-black pb-24" aria-label="Crypto">
         <SubHeader title="Crypto" onBack={() => onAssetChange("Stocks")} />
         <CryptoDiscovery state={state} onTrade={onCryptoTrade} />
       </section>
@@ -90,7 +90,7 @@ export function DiscoveryPage({
   }
   if (sector !== "All") {
     return (
-      <section className="min-h-full bg-black pb-24" aria-label={`${sector} stocks`}>
+      <section className="-mx-4 -mt-4 min-h-full bg-black pb-24" aria-label={`${sector} stocks`}>
         <SubHeader title={sector} onBack={() => onSectorChange("All")} />
         {rows(sectorStocks)}
         {!sectorStocks.length && <p className="px-4 py-10 text-center text-[#8E8E93]">No symbols in this sector</p>}
@@ -99,7 +99,7 @@ export function DiscoveryPage({
   }
   if (view.kind === "all") {
     return (
-      <section className="min-h-full bg-black pb-24" aria-label="All symbols">
+      <section className="-mx-4 -mt-4 min-h-full bg-black pb-24" aria-label="All symbols">
         <SubHeader title="All symbols" onBack={() => setView({ kind: "home" })} />
         {rows(alphabetical)}
       </section>
@@ -107,7 +107,7 @@ export function DiscoveryPage({
   }
   if (view.kind === "ranked") {
     return (
-      <section className="min-h-full bg-black pb-24" aria-label={RANKED_TITLES[view.key]}>
+      <section className="-mx-4 -mt-4 min-h-full bg-black pb-24" aria-label={RANKED_TITLES[view.key]}>
         <SubHeader title={RANKED_TITLES[view.key]} onBack={() => setView({ kind: "home" })} />
         {rows(ranked[view.key], view.key === "active" ? "volume" : "price")}
       </section>
@@ -115,7 +115,7 @@ export function DiscoveryPage({
   }
 
   return (
-    <section className="discovery-view min-h-full bg-black pb-24" aria-label="Discover investments">
+    <section className="discovery-view -mx-4 -mt-4 min-h-full bg-black pb-24" aria-label="Discover investments">
       <h1 className="px-4 pt-6 text-[26px] font-bold text-white">Discover</h1>
       <label className="mx-4 mt-3 flex h-11 items-center gap-2 rounded-xl bg-[#1C1C1E] px-3 text-[#8E8E93]">
         <Search size={17} aria-hidden="true" />

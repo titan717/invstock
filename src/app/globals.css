@@ -834,3 +834,8 @@ select:focus-visible {
 .payoff-slider { -webkit-appearance: none; appearance: none; height: 4px; border-radius: 999px; background: #3A3A3C; outline: none; }
 .payoff-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; border: 0; }
 .payoff-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; border: 0; }
+
+/* Loans: amount slider (track fill is set inline). */
+.loan-slider { -webkit-appearance: none; appearance: none; height: 6px; border-radius: 999px; outline: none; }
+.loan-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.5); cursor: pointer; }
+.loan-slider::-moz-range-thumb { width: 24px; height: 24px; border: 0; border-radius: 50%; background: #fff; cursor: pointer; }

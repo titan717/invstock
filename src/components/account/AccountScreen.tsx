@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Clock3, Crown, DollarSign, Droplet, FileText, Landmark, List, Plus, Settings, Star, Target, Trophy } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, ChevronLeft, ChevronRight, Clock3, Crown, DollarSign, Droplet, FileText, HandCoins, Landmark, List, PieChart, Plus, Settings, Star, Target, Trophy } from "lucide-react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import type { Stock } from "@/lib/market";
 import { ACHIEVEMENTS, type GameActivity, type GameState } from "@/lib/game-engine";
@@ -70,6 +70,8 @@ export type AccountScreenProps = {
   onOpenSettings: () => void;
   onAddCash: () => void;
   onUnavailable: (feature: string) => void;
+  onOpenNetWorth?: () => void;
+  onOpenLoans?: () => void;
   /** Bank, crypto, businesses, real estate, compliance and rebirth panels. */
   empirePanels: ReactNode;
 };
@@ -153,7 +155,7 @@ function ActivityList({ items, currency }: { items: GameActivity[]; currency: Cu
   );
 }
 
-export function AccountScreen({ state, stocks, totalValue, currency, initialView = "root", benchmarkTicker = "SPY", onOpenStock, onClaimMission, onJoinChallenge, onClaimChallenge, onOpenSettings, onAddCash, onUnavailable, empirePanels }: AccountScreenProps) {
+export function AccountScreen({ state, stocks, totalValue, currency, initialView = "root", benchmarkTicker = "SPY", onOpenStock, onClaimMission, onJoinChallenge, onClaimChallenge, onOpenSettings, onAddCash, onUnavailable, onOpenNetWorth, onOpenLoans, empirePanels }: AccountScreenProps) {
   const [view, setView] = useState<AccountView>(initialView);
   const [range, setRange] = useState<"1M" | "3M" | "1Y" | "ALL">("ALL");
   const [historyFilter, setHistoryFilter] = useState<"All" | "Stocks" | "Dividends">("All");
@@ -365,6 +367,8 @@ export function AccountScreen({ state, stocks, totalValue, currency, initialView
       <SectionHeading>More</SectionHeading>
       <Row icon={<Crown size={18} />} label="Market Sim Pro" onClick={() => onUnavailable("Market Sim Pro")} />
       <Row icon={<Plus size={18} />} label="Add virtual cash" onClick={onAddCash} />
+      {onOpenNetWorth && <Row icon={<PieChart size={18} />} label="Net worth" onClick={onOpenNetWorth} />}
+      {onOpenLoans && <Row icon={<HandCoins size={18} />} label="Loans" value={state.loan > 0 ? formatMoney(state.loan, currency) : undefined} onClick={onOpenLoans} />}
       <Row icon={<Landmark size={18} />} label="Bank & empire" onClick={() => setView("empire")} />
       <Row icon={<Settings size={18} />} label="Settings" onClick={onOpenSettings} />
 
